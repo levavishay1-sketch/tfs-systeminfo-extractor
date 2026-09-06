@@ -113,7 +113,7 @@ namespace TfsSystemInfoExtractor
 
             var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
             var parsed = (Dictionary<string, object>)serializer.DeserializeObject(body);
-            var values = (ArrayList)parsed["value"];
+            var values = (object[])parsed["value"];
 
             foreach (Dictionary<string, object> field in values)
             {
@@ -317,7 +317,7 @@ namespace TfsSystemInfoExtractor
             var result = new List<int>();
             if (!raw.ContainsKey("relations") || raw["relations"] == null) return result;
 
-            var relations = (ArrayList)raw["relations"];
+            var relations = (object[])raw["relations"];
             foreach (Dictionary<string, object> rel in relations)
             {
                 var relName = rel.ContainsKey("rel") ? (string)rel["rel"] : null;
