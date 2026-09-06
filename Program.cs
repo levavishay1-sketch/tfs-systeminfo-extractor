@@ -20,7 +20,7 @@ namespace TfsSystemInfoExtractor
     internal static class Config
     {
         // TFS / Azure DevOps on-premise collection URL.
-        public const string TfsCollectionUrl = "http://server:8080/tfs/CollectionName";
+        public const string TfsCollectionUrl = "http://192.168.160.17:8080/tfs/Altshuler%20Shaham%20IT";
 
         // REST API version. Change here in one place if your on-prem TFS
         // needs a different version (e.g. "1.0", "2.0", "4.1").
