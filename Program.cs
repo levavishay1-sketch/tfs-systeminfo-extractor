@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -686,195 +686,363 @@ namespace TfsSystemInfoExtractor
     internal static class Ui
     {
         public const string IndexHtml = @"<!DOCTYPE html>
-<html lang=""en"">
+<html lang='en'>
 <head>
-<meta charset=""utf-8"">
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
 <title>TFS System Info Extractor</title>
 <style>
-  :root { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Segoe UI, Arial, sans-serif; background: #f4f6f8; color: #1f2937; }
-  header { background: #1f2937; color: #fff; padding: 16px 24px; }
-  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
-  main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
-  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
-  textarea { width: 100%; min-height: 100px; font-family: Consolas, monospace; font-size: 13px; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; resize: vertical; }
-  .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-  button { background: #2563eb; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; }
-  button:disabled { background: #9ca3af; cursor: not-allowed; }
-  button.secondary { background: #059669; }
-  input[type=file] { font-size: 13px; }
-  #log { background: #0f172a; color: #d1fae5; font-family: Consolas, monospace; font-size: 12px; padding: 12px; border-radius: 6px; height: 260px; overflow-y: auto; white-space: pre-wrap; }
-  #status { margin-top: 8px; font-size: 13px; color: #374151; }
-  .tree { font-size: 14px; }
-  .node { border-inline-start: 2px solid #e5e7eb; margin-inline-start: 10px; padding-inline-start: 12px; padding-top: 6px; }
-  .node-head { cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
-  .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #eef2ff; color: #4338ca; }
-  .title { font-weight: 600; }
-  .meta { color: #6b7280; font-size: 12px; }
-  .sysinfo { white-space: pre-wrap; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 10px; margin: 6px 0 10px; font-size: 13px; direction: auto; }
-  .empty { color: #9ca3af; font-style: italic; font-size: 12px; }
-  .error { color: #b91c1c; font-size: 12px; }
-  .toggle { user-select: none; width: 14px; display: inline-block; }
-  .hidden { display: none; }
+  :root {
+    --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f9fafb; --border:#e5e7eb;
+    --text:#1a1d23; --muted:#6b7280;
+    --accent:#4f46e5; --accent-2:#4338ca;
+    --ok:#059669; --bad:#dc2626;
+    --si-bg:#fffbeb; --si-border:#f5e2a8; --si-text:#6b4d10;
+    --radius:12px; color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e1014; --surface:#161922; --surface-2:#1c202b; --border:#2a2f3c;
+      --text:#e6e8ec; --muted:#9aa3b2;
+      --accent:#6366f1; --accent-2:#a5b4fc;
+      --ok:#34d399; --bad:#f87171;
+      --si-bg:#241f10; --si-border:#4a3f22; --si-text:#ecdcab;
+      color-scheme: dark;
+    }
+  }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.55 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif; }
+  .topbar { background:linear-gradient(120deg, #312e81, #4f46e5); color:#fff; padding:18px 24px; }
+  .brand { display:flex; align-items:center; gap:14px; max-width:1080px; margin:0 auto; }
+  .logo { width:40px; height:40px; border-radius:10px; display:grid; place-items:center;
+    background:rgba(255,255,255,.15); font-weight:700; letter-spacing:.5px; font-size:13px; }
+  .brand-title { font-size:17px; font-weight:650; }
+  .brand-sub { font-size:12.5px; opacity:.82; margin-top:2px; }
+  main { max-width:1080px; margin:24px auto; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:12px; flex-wrap:wrap; }
+  .card-head h2 { margin:0; font-size:12.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.7px; color:var(--muted); }
+  .hint { font-size:12px; color:var(--muted); }
+  textarea { width:100%; min-height:96px; resize:vertical; padding:12px 14px; border:1px solid var(--border);
+    border-radius:10px; background:var(--surface-2); color:var(--text);
+    font:13px/1.5 'Cascadia Code', Consolas, monospace; }
+  textarea:focus, .btn:focus-visible, .file-btn input:focus-visible + span {
+    outline:2px solid var(--accent); outline-offset:1px; }
+  .actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+  .btn { border:1px solid transparent; border-radius:9px; padding:9px 18px; font:inherit;
+    font-weight:600; cursor:pointer; transition:background .12s, border-color .12s, opacity .12s; }
+  .btn.sm { padding:6px 12px; font-size:12.5px; }
+  .btn.primary { background:var(--accent); color:#fff; }
+  .btn.primary:hover { background:var(--accent-2); }
+  .btn.primary:disabled { opacity:.55; cursor:default; }
+  .btn.ok { background:var(--ok); color:#fff; }
+  .btn.ok:hover { filter:brightness(1.06); }
+  .btn.ghost { background:var(--surface-2); border-color:var(--border); color:var(--text); }
+  .btn.ghost:hover { border-color:var(--muted); }
+  .file-btn { position:relative; overflow:hidden; display:inline-block; }
+  .file-btn input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .file-btn span { display:inline-block; padding:9px 18px; border-radius:9px; background:var(--surface-2);
+    border:1px solid var(--border); font-weight:600; }
+  .status { font-size:12.5px; font-weight:600; padding:4px 11px; border-radius:999px; }
+  .status-idle { color:var(--muted); }
+  .status-running { color:var(--accent-2); background:rgba(99,102,241,.14); }
+  .status-done { color:var(--ok); background:rgba(5,150,105,.15); }
+  .status-error { color:var(--bad); background:rgba(220,38,38,.13); }
+  .log { margin:0; background:#0b0e14; color:#c9d5c3; border-radius:10px; padding:14px; height:260px;
+    overflow:auto; white-space:pre-wrap; word-break:break-word;
+    font:12px/1.55 'Cascadia Code', Consolas, monospace; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .stats { display:flex; gap:6px; margin-right:6px; flex-wrap:wrap; }
+  .stat { font-size:12px; color:var(--muted); background:var(--surface-2); border:1px solid var(--border);
+    padding:4px 9px; border-radius:999px; }
+  .stat b { color:var(--text); }
+  .stat.ok b { color:var(--ok); }
+  .stat.bad b { color:var(--bad); }
+  .tree { margin-top:4px; }
+  .node-head { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; }
+  .node.has-kids > .node-head { cursor:pointer; }
+  .node-head:hover { background:var(--surface-2); }
+  .twist { flex:none; width:14px; height:14px; padding:0; border:none; background:none; cursor:pointer;
+    position:relative; }
+  .node.has-kids > .node-head > .twist::before { content:''; position:absolute; top:50%; left:50%;
+    width:0; height:0; border-left:5px solid var(--muted); border-top:4px solid transparent;
+    border-bottom:4px solid transparent; transform:translate(-50%,-50%); transition:transform .12s; }
+  .node.has-kids.open > .node-head > .twist::before { transform:translate(-50%,-50%) rotate(90deg); }
+  .badge { font-size:11px; font-weight:650; padding:2px 8px; border-radius:6px; white-space:nowrap; flex:none;
+    background:hsl(var(--h) 60% 92%); color:hsl(var(--h) 55% 32%); }
+  @media (prefers-color-scheme: dark) {
+    .badge { background:hsl(var(--h) 38% 24%); color:hsl(var(--h) 70% 78%); }
+  }
+  .wid { font-size:12.5px; font-weight:600; color:var(--accent-2); text-decoration:none; white-space:nowrap; flex:none; }
+  .wid:hover { text-decoration:underline; }
+  .ntitle { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .state { font-size:11px; color:var(--muted); border:1px solid var(--border); padding:1px 7px;
+    border-radius:999px; white-space:nowrap; flex:none; }
+  .kidcount { font-size:11px; font-weight:600; color:var(--muted); background:var(--surface-2);
+    border:1px solid var(--border); min-width:20px; text-align:center; border-radius:999px; padding:1px 5px; flex:none; }
+  .node-body { padding-left:22px; margin-left:7px; border-left:1px solid var(--border); }
+  .node.has-kids:not(.open) > .node-body { display:none; }
+  .sysinfo { position:relative; background:var(--si-bg); border:1px solid var(--si-border); color:var(--si-text);
+    border-radius:8px; padding:10px 40px 10px 12px; margin:4px 0 8px; }
+  .sysinfo.err { background:rgba(220,38,38,.10); border-color:var(--bad); color:var(--bad); }
+  .sysinfo-text { white-space:pre-wrap; word-break:break-word; font-size:13px; }
+  .copy { position:absolute; top:6px; right:8px; font-size:11px; font-weight:600; border:1px solid var(--si-border);
+    background:var(--surface); color:var(--muted); border-radius:6px; padding:2px 8px; cursor:pointer; }
+  .copy:hover { color:var(--text); }
+  .noinfo { font-size:12px; color:var(--muted); font-style:italic; margin:2px 0 6px; }
+  .placeholder { color:var(--muted); font-size:13px; padding:8px 0; }
+  @media (max-width:640px) { .ntitle { white-space:normal; } }
 </style>
 </head>
 <body>
-<header><h1>TFS System Info Extractor</h1></header>
+<header class='topbar'>
+  <div class='brand'>
+    <div class='logo'>TFS</div>
+    <div>
+      <div class='brand-title'>System Info Extractor</div>
+      <div class='brand-sub'>Walks every Work Item child recursively and extracts the System Info field</div>
+    </div>
+  </div>
+</header>
 <main>
-  <div class=""card"">
-    <label><strong>Work Item IDs</strong> (comma / space / newline separated, or upload a file)</label>
-    <textarea id=""ids"" placeholder=""46269, 44065, 42629""></textarea>
-    <div class=""row"">
-      <input type=""file"" id=""file"" accept="".txt,.csv"">
-      <button id=""runBtn"">Run</button>
-      <span id=""status""></span>
+  <section class='card'>
+    <div class='card-head'>
+      <h2>Work Item IDs</h2>
+      <span class='hint' id='idCount'></span>
     </div>
-  </div>
-
-  <div class=""card"" id=""logCard"" style=""display:none"">
-    <strong>Progress</strong>
-    <div id=""log""></div>
-  </div>
-
-  <div class=""card"" id=""resultsCard"" style=""display:none"">
-    <div class=""row"">
-      <strong>Results</strong>
-      <button class=""secondary"" id=""dlJson"">Download JSON</button>
-      <button class=""secondary"" id=""dlMd"">Download Markdown</button>
+    <textarea id='ids' spellcheck='false' placeholder='46269, 44065, 42629 - or one per line'></textarea>
+    <div class='actions'>
+      <label class='file-btn'><input type='file' id='file' accept='.txt,.csv'><span>Upload file</span></label>
+      <button class='btn ghost' id='clearBtn' type='button'>Clear</button>
+      <button class='btn primary' id='runBtn' type='button'>Run</button>
     </div>
-    <div class=""tree"" id=""tree""></div>
-  </div>
+  </section>
+
+  <section class='card' id='progressCard' hidden>
+    <div class='card-head'>
+      <h2>Progress</h2>
+      <span class='status status-idle' id='status'></span>
+    </div>
+    <pre class='log' id='log'></pre>
+  </section>
+
+  <section class='card' id='resultsCard' hidden>
+    <div class='card-head'>
+      <h2>Results</h2>
+      <div class='toolbar'>
+        <div class='stats'>
+          <span class='stat'><b id='statTotal'>0</b> items</span>
+          <span class='stat ok'><b id='statInfo'>0</b> with info</span>
+          <span class='stat bad' id='statErrWrap' hidden><b id='statErr'>0</b> errors</span>
+        </div>
+        <button class='btn ghost sm' id='expandAll' type='button'>Expand all</button>
+        <button class='btn ghost sm' id='collapseAll' type='button'>Collapse all</button>
+        <button class='btn ok sm' id='dlJson' type='button'>JSON</button>
+        <button class='btn ok sm' id='dlMd' type='button'>Markdown</button>
+      </div>
+    </div>
+    <div class='tree' id='tree'></div>
+  </section>
 </main>
 <script>
-document.getElementById('file').addEventListener('change', function (e) {
-  var f = e.target.files[0];
-  if (!f) return;
-  var reader = new FileReader();
-  reader.onload = function () { document.getElementById('ids').value = reader.result; };
-  reader.readAsText(f, 'utf-8');
+const $ = s => document.querySelector(s);
+let jobId = null, timer = null;
+
+$('#file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { $('#ids').value = r.result; updateCount(); };
+  r.readAsText(f, 'utf-8');
 });
+$('#ids').addEventListener('input', updateCount);
+function updateCount() {
+  const n = ($('#ids').value.match(/\d+/g) || []).length;
+  $('#idCount').textContent = n ? (n + (n === 1 ? ' id' : ' ids')) : '';
+}
+$('#clearBtn').addEventListener('click', () => { $('#ids').value = ''; $('#file').value = ''; updateCount(); $('#ids').focus(); });
+$('#runBtn').addEventListener('click', run);
 
-var currentJobId = null;
-var pollTimer = null;
-
-document.getElementById('runBtn').addEventListener('click', async function () {
-  var ids = document.getElementById('ids').value;
-  if (!ids.trim()) { alert('Enter at least one Work Item ID.'); return; }
-
-  document.getElementById('runBtn').disabled = true;
-  document.getElementById('status').textContent = 'Starting...';
-  document.getElementById('logCard').style.display = 'block';
-  document.getElementById('resultsCard').style.display = 'none';
-  document.getElementById('log').textContent = '';
-
-  var resp = await fetch('/api/run', { method: 'POST', body: ids });
-  if (!resp.ok) {
-    document.getElementById('status').textContent = 'Error: ' + (await resp.text());
-    document.getElementById('runBtn').disabled = false;
-    return;
-  }
-  var data = await resp.json();
-  currentJobId = data.jobId;
-  poll();
-});
-
-function poll() {
-  pollTimer = setInterval(async function () {
-    var resp = await fetch('/api/status?jobId=' + currentJobId);
-    if (!resp.ok) return;
-    var data = await resp.json();
-    document.getElementById('log').textContent = data.log.join('\n');
-    var logEl = document.getElementById('log');
-    logEl.scrollTop = logEl.scrollHeight;
-    document.getElementById('status').textContent = data.done
-      ? ('Done - ' + data.processed + ' Work Items processed' + (data.error ? (' (error: ' + data.error + ')') : ''))
-      : ('Running... ' + data.processed + ' processed so far');
-
-    if (data.done) {
-      clearInterval(pollTimer);
-      document.getElementById('runBtn').disabled = false;
-      if (data.hasFiles) {
-        document.getElementById('resultsCard').style.display = 'block';
-        loadTree();
-      }
-    }
-  }, 700);
+async function run() {
+  const ids = $('#ids').value;
+  if (!ids.trim()) { $('#ids').focus(); return; }
+  $('#runBtn').disabled = true;
+  $('#runBtn').textContent = 'Running...';
+  setStatus('running', 'Starting');
+  $('#progressCard').hidden = false;
+  $('#resultsCard').hidden = true;
+  $('#log').textContent = '';
+  let resp;
+  try { resp = await fetch('/api/run', { method: 'POST', body: ids }); }
+  catch (e) { fail('Cannot reach the local server.'); return; }
+  if (!resp.ok) { fail(await resp.text()); return; }
+  jobId = (await resp.json()).jobId;
+  timer = setInterval(poll, 700);
+}
+function fail(msg) {
+  setStatus('error', msg || 'Error');
+  $('#runBtn').disabled = false;
+  $('#runBtn').textContent = 'Run';
+}
+async function poll() {
+  let data;
+  try {
+    const r = await fetch('/api/status?jobId=' + jobId);
+    if (!r.ok) return;
+    data = await r.json();
+  } catch (e) { return; }
+  const log = $('#log');
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  log.textContent = data.log.join('\n');
+  if (atBottom) log.scrollTop = log.scrollHeight;
+  if (!data.done) { setStatus('running', data.processed + ' work items processed'); return; }
+  clearInterval(timer);
+  $('#runBtn').disabled = false;
+  $('#runBtn').textContent = 'Run';
+  if (data.error) setStatus('error', data.error);
+  else setStatus('done', 'Done - ' + data.processed + ' work items');
+  if (data.hasFiles) { $('#resultsCard').hidden = false; loadTree(); }
+}
+function setStatus(kind, text) {
+  const el = $('#status');
+  el.className = 'status status-' + kind;
+  el.textContent = text;
 }
 
+let stats;
 async function loadTree() {
-  var resp = await fetch('/api/download?jobId=' + currentJobId + '&type=json');
-  var data = await resp.json();
-  var container = document.getElementById('tree');
-  container.innerHTML = '';
-  data.Roots.forEach(function (n) { container.appendChild(renderNode(n)); });
+  const tree = $('#tree');
+  const r = await fetch('/api/download?jobId=' + jobId + '&type=json');
+  const data = await r.json();
+  stats = { total: 0, withInfo: 0, errors: 0 };
+  tree.innerHTML = '';
+  data.Roots.forEach(n => tree.appendChild(renderNode(n, 0)));
+  $('#statTotal').textContent = stats.total;
+  $('#statInfo').textContent = stats.withInfo;
+  $('#statErr').textContent = stats.errors;
+  $('#statErrWrap').hidden = stats.errors === 0;
 }
+function hueOf(type) {
+  let h = 0;
+  for (const c of (type || '?')) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+function renderNode(n, depth) {
+  stats.total++;
+  if (n.Error) stats.errors++;
+  else if (n.SystemInfo) stats.withInfo++;
 
-function renderNode(n) {
-  var wrap = document.createElement('div');
-  wrap.className = 'node';
+  const hasKids = !!(n.Children && n.Children.length);
+  const node = document.createElement('div');
+  node.className = 'node' + (hasKids ? ' has-kids' : '');
 
-  var head = document.createElement('div');
+  const head = document.createElement('div');
   head.className = 'node-head';
 
-  var toggle = document.createElement('span');
-  toggle.className = 'toggle';
-  toggle.textContent = n.Children && n.Children.length ? '\u25be' : ' ';
-  head.appendChild(toggle);
+  const tw = document.createElement('button');
+  tw.className = 'twist';
+  tw.type = 'button';
+  tw.setAttribute('aria-label', 'toggle');
+  tw.style.visibility = hasKids ? 'visible' : 'hidden';
+  head.appendChild(tw);
 
-  var badge = document.createElement('span');
+  const badge = document.createElement('span');
   badge.className = 'badge';
+  badge.style.setProperty('--h', hueOf(n.Type));
   badge.textContent = n.Type || '?';
   head.appendChild(badge);
 
-  var title = document.createElement('span');
-  title.className = 'title';
-  title.textContent = '#' + n.Id + ' ' + (n.Title || '');
+  const id = document.createElement('a');
+  id.className = 'wid';
+  id.textContent = '#' + n.Id;
+  if (n.Url) { id.href = n.Url; id.target = '_blank'; id.rel = 'noopener'; }
+  head.appendChild(id);
+
+  const title = document.createElement('span');
+  title.className = 'ntitle';
+  title.dir = 'auto';
+  title.textContent = n.Title || '';
   head.appendChild(title);
 
-  var meta = document.createElement('span');
-  meta.className = 'meta';
-  meta.textContent = n.State || '';
-  head.appendChild(meta);
+  if (n.State) {
+    const st = document.createElement('span');
+    st.className = 'state';
+    st.textContent = n.State;
+    head.appendChild(st);
+  }
+  if (hasKids) {
+    const cc = document.createElement('span');
+    cc.className = 'kidcount';
+    cc.textContent = n.Children.length;
+    head.appendChild(cc);
+  }
+  node.appendChild(head);
 
-  wrap.appendChild(head);
-
-  var body = document.createElement('div');
+  const body = document.createElement('div');
+  body.className = 'node-body';
 
   if (n.Error) {
-    var err = document.createElement('div');
-    err.className = 'error';
-    err.textContent = 'Error: ' + n.Error;
-    body.appendChild(err);
+    const e = document.createElement('div');
+    e.className = 'sysinfo err';
+    const t = document.createElement('div');
+    t.className = 'sysinfo-text';
+    t.textContent = n.Error;
+    e.appendChild(t);
+    body.appendChild(e);
   } else if (n.SystemInfo) {
-    var si = document.createElement('div');
-    si.className = 'sysinfo';
-    si.textContent = n.SystemInfo;
-    body.appendChild(si);
+    const wrap = document.createElement('div');
+    wrap.className = 'sysinfo';
+    const cp = document.createElement('button');
+    cp.className = 'copy';
+    cp.type = 'button';
+    cp.textContent = 'Copy';
+    cp.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (navigator.clipboard) navigator.clipboard.writeText(n.SystemInfo);
+      cp.textContent = 'Copied';
+      setTimeout(() => { cp.textContent = 'Copy'; }, 1200);
+    });
+    const t = document.createElement('div');
+    t.className = 'sysinfo-text';
+    t.dir = 'auto';
+    t.textContent = n.SystemInfo;
+    wrap.appendChild(cp);
+    wrap.appendChild(t);
+    body.appendChild(wrap);
   } else {
-    var empty = document.createElement('div');
-    empty.className = 'empty';
-    empty.textContent = '(no System Info)';
-    body.appendChild(empty);
+    const em = document.createElement('div');
+    em.className = 'noinfo';
+    em.textContent = 'No System Info';
+    body.appendChild(em);
   }
 
-  var childWrap = document.createElement('div');
-  (n.Children || []).forEach(function (c) { childWrap.appendChild(renderNode(c)); });
-  body.appendChild(childWrap);
+  if (hasKids) {
+    const kids = document.createElement('div');
+    n.Children.forEach(c => kids.appendChild(renderNode(c, depth + 1)));
+    body.appendChild(kids);
+  }
+  node.appendChild(body);
 
-  wrap.appendChild(body);
-
-  head.addEventListener('click', function () { body.classList.toggle('hidden'); });
-
-  return wrap;
+  if (hasKids) {
+    head.addEventListener('click', e => {
+      if (e.target.closest('a')) return;
+      node.classList.toggle('open');
+    });
+    if (depth < 1) node.classList.add('open');
+  }
+  return node;
 }
-
-document.getElementById('dlJson').addEventListener('click', function () {
-  if (currentJobId) window.location.href = '/api/download?jobId=' + currentJobId + '&type=json';
-});
-document.getElementById('dlMd').addEventListener('click', function () {
-  if (currentJobId) window.location.href = '/api/download?jobId=' + currentJobId + '&type=md';
-});
+$('#expandAll').addEventListener('click', () => setAll(true));
+$('#collapseAll').addEventListener('click', () => setAll(false));
+function setAll(open) {
+  document.querySelectorAll('#tree .node.has-kids').forEach(n => n.classList.toggle('open', open));
+}
+$('#dlJson').addEventListener('click', () => { if (jobId) location.href = '/api/download?jobId=' + jobId + '&type=json'; });
+$('#dlMd').addEventListener('click', () => { if (jobId) location.href = '/api/download?jobId=' + jobId + '&type=md'; });
+updateCount();
 </script>
 </body>
 </html>";
