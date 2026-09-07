@@ -817,18 +817,17 @@ namespace TfsSystemInfoExtractor
     background:var(--surface); color:var(--muted); border-radius:6px; padding:2px 8px; cursor:pointer; }
   .copy:hover { color:var(--text); }
 
-  /* view: cards */
-  .view-cards .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; }
-  .view-cards .wcard { border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--surface-2); }
-  .view-cards .wcard.err { border-color:var(--bad); }
-  .view-cards .wc-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
-  .view-cards .wc-title { font-weight:600; margin-bottom:6px; }
-  .view-cards .wc-si { font-size:12.5px; color:var(--si-text); background:var(--si-bg); border:1px solid var(--si-border);
-    border-radius:8px; padding:8px 10px; white-space:pre-wrap; word-break:break-word;
-    display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
-  .view-cards .wc-si.err { color:var(--bad); background:rgba(220,38,38,.10); border-color:var(--bad); }
-  .view-cards .wc-none { font-size:12px; color:var(--muted); font-style:italic; }
-  .view-cards .wc-foot { margin-top:8px; font-size:11px; color:var(--muted); display:flex; gap:10px; }
+  /* export menu */
+  .exportwrap { position:relative; }
+  .menu { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:190px;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px;
+    box-shadow:0 8px 24px rgba(0,0,0,.16); }
+  .menu button { display:flex; width:100%; align-items:baseline; gap:8px; border:none; background:none;
+    color:var(--text); font:inherit; text-align:left; padding:8px 10px; border-radius:7px; cursor:pointer; }
+  .menu button:hover { background:var(--surface-2); }
+  .menu button .tag { margin-left:auto; font-size:10.5px; font-weight:700; color:var(--accent-2);
+    text-transform:uppercase; letter-spacing:.4px; }
+  .menu button small { color:var(--muted); font-size:11px; }
 
   /* view: table */
   .view-table .twrap { overflow-x:auto; }
@@ -931,8 +930,14 @@ namespace TfsSystemInfoExtractor
         </div>
         <button class='btn ghost sm' id='expandAll' type='button' hidden>Expand all</button>
         <button class='btn ghost sm' id='collapseAll' type='button' hidden>Collapse all</button>
-        <button class='btn ok sm' id='dlJson' type='button'>JSON</button>
-        <button class='btn ok sm' id='dlMd' type='button'>Markdown</button>
+        <span class='exportwrap'>
+          <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
+          <div class='menu' id='exportMenu' hidden>
+            <button type='button' data-fmt='csv'>CSV <small>(table format)</small><span class='tag'>default</span></button>
+            <button type='button' data-fmt='json'>JSON</button>
+            <button type='button' data-fmt='md'>Markdown</button>
+          </div>
+        </span>
       </div>
     </div>
     <div class='viewport' id='viewport'></div>
@@ -1003,8 +1008,8 @@ function setStatus(kind, text) {
 }
 
 /* ---------- results + views ---------- */
-const VIEWS = ['compact', 'tree', 'cards', 'table', 'detailed', 'outline', 'focus'];
-const LABELS = { compact:'Compact', tree:'Tree', cards:'Cards', table:'Table', detailed:'Detailed', outline:'Outline', focus:'Info Focus' };
+const VIEWS = ['compact', 'tree', 'table', 'detailed', 'outline', 'focus'];
+const LABELS = { compact:'Compact', tree:'Tree', table:'Table', detailed:'Detailed', outline:'Outline', focus:'Info Focus' };
 let currentView = 'tree';
 try { const s = localStorage.getItem('tfsView'); if (s && VIEWS.indexOf(s) >= 0) currentView = s; } catch (e) {}
 let roots = null, flat = [], byId = {}, stats = null;
@@ -1097,7 +1102,7 @@ function render() {
   const vp = $('#viewport');
   vp.className = 'viewport view-' + currentView;
   vp.innerHTML = '';
-  const fn = { compact: vCompact, tree: vTree, cards: vCards, table: vTable, detailed: vDetailed, outline: vOutline, focus: vFocus }[currentView];
+  const fn = { compact: vCompact, tree: vTree, table: vTable, detailed: vDetailed, outline: vOutline, focus: vFocus }[currentView];
   fn(vp);
 }
 
@@ -1158,30 +1163,7 @@ function treeNode(n) {
 $('#expandAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open')));
 $('#collapseAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open')));
 
-/* 3. cards */
-function vCards(vp) {
-  const grid = el('div', 'grid');
-  flat.forEach(n => {
-    const c = el('div', 'wcard' + (n.Error ? ' err' : ''));
-    const h = el('div', 'wc-head');
-    h.appendChild(badge(n));
-    h.appendChild(widLink(n));
-    if (n.State) h.appendChild(el('span', 'state', n.State));
-    c.appendChild(h);
-    const t = el('div', 'wc-title', n.Title || ''); t.dir = 'auto'; c.appendChild(t);
-    if (n.Error) { const s = el('div', 'wc-si err', n.Error); c.appendChild(s); }
-    else if (hasInfo(n)) { const s = el('div', 'wc-si', n.SystemInfo); s.dir = 'auto'; c.appendChild(s); }
-    else c.appendChild(el('div', 'wc-none', 'No System Info'));
-    const f = el('div', 'wc-foot');
-    f.appendChild(el('span', null, 'depth ' + n._depth));
-    f.appendChild(el('span', null, (n.Children ? n.Children.length : 0) + ' children'));
-    c.appendChild(f);
-    grid.appendChild(c);
-  });
-  vp.appendChild(grid);
-}
-
-/* 4. table */
+/* table */
 function vTable(vp) {
   const wrap = el('div', 'twrap');
   const tbl = el('table');
@@ -1306,8 +1288,53 @@ function vFocus(vp) {
   });
 }
 
-$('#dlJson').addEventListener('click', () => { if (jobId) location.href = '/api/download?jobId=' + jobId + '&type=json'; });
-$('#dlMd').addEventListener('click', () => { if (jobId) location.href = '/api/download?jobId=' + jobId + '&type=md'; });
+/* ---------- export menu ---------- */
+const exportBtn = $('#exportBtn'), exportMenu = $('#exportMenu');
+function closeMenu() { exportMenu.hidden = true; }
+exportBtn.addEventListener('click', e => { e.stopPropagation(); exportMenu.hidden = !exportMenu.hidden; });
+document.addEventListener('click', closeMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+exportMenu.addEventListener('click', e => {
+  const b = e.target.closest('button[data-fmt]');
+  if (!b) return;
+  closeMenu();
+  doExport(b.dataset.fmt);
+});
+function doExport(fmt) {
+  if (!jobId) return;
+  if (fmt === 'json' || fmt === 'md') { location.href = '/api/download?jobId=' + jobId + '&type=' + fmt; return; }
+  if (fmt === 'csv') exportCsv();
+}
+const TABLE_HEADERS = ['ID', 'Type', 'Title', 'State', 'Info', 'System Info'];
+function tableRowValues(n) {
+  return [
+    n.Id,
+    n.Type || '',
+    n.Title || '',
+    n.State || '',
+    n.Error ? 'ERROR' : (hasInfo(n) ? 'Yes' : 'No'),
+    n.Error ? n.Error : (n.SystemInfo || '')
+  ];
+}
+const QUOTE = String.fromCharCode(34);
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return (s.indexOf(QUOTE) >= 0 || s.indexOf(',') >= 0 || s.indexOf('\n') >= 0 || s.indexOf('\r') >= 0)
+    ? QUOTE + s.split(QUOTE).join(QUOTE + QUOTE) + QUOTE
+    : s;
+}
+function exportCsv() {
+  const lines = [TABLE_HEADERS.map(csvCell).join(',')];
+  tableRows().forEach(n => lines.push(tableRowValues(n).map(csvCell).join(',')));
+  const blob = new Blob([String.fromCharCode(0xFEFF) + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'TfsSystemInfo_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
 updateCount();
 </script>
 </body>
