@@ -699,6 +699,7 @@ namespace TfsSystemInfoExtractor
     --accent:#4f46e5; --accent-2:#4338ca;
     --ok:#059669; --bad:#dc2626;
     --si-bg:#fffbeb; --si-border:#f5e2a8; --si-text:#6b4d10;
+    --tvline:#c4cbd6;
     --radius:12px; color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -708,6 +709,7 @@ namespace TfsSystemInfoExtractor
       --accent:#6366f1; --accent-2:#a5b4fc;
       --ok:#34d399; --bad:#f87171;
       --si-bg:#241f10; --si-border:#4a3f22; --si-text:#ecdcab;
+      --tvline:#3a4150;
       color-scheme: dark;
     }
   }
@@ -829,20 +831,62 @@ namespace TfsSystemInfoExtractor
     text-transform:uppercase; letter-spacing:.4px; }
   .menu button small { color:var(--muted); font-size:11px; }
 
-  /* view: table */
-  .view-table .twrap { overflow-x:auto; }
-  .view-table table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  .view-table th, .view-table td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border);
-    vertical-align:top; }
-  .view-table th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; position:sticky; top:0;
-    background:var(--surface); cursor:pointer; white-space:nowrap; }
-  .view-table tr:hover td { background:var(--surface-2); }
-  .view-table td.t-title { max-width:340px; }
-  .view-table td.t-si { max-width:420px; color:var(--muted); }
-  .view-table .clip { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .view-table .yes { color:var(--ok); font-weight:600; }
-  .view-table .no { color:var(--muted); }
-  .view-table .er { color:var(--bad); font-weight:600; }
+  /* view: table (primary) */
+  .view-table .tv-wrap { width:100%; }
+  .view-table table.tv { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
+  .view-table .tv col.c-id { width:64px; }
+  .view-table .tv col.c-type { width:110px; }
+  .view-table .tv col.c-state { width:92px; }
+  .view-table .tv col.c-title { width:32%; }
+  .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border);
+    vertical-align:top; overflow-wrap:anywhere; }
+  .view-table .tv thead th { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
+    background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; }
+  .view-table .tv tbody tr:hover td { background:var(--surface-2); }
+  .view-table .tv tbody tr.err td { background:rgba(220,38,38,.05); }
+  .view-table .tv .cell-id a { font-weight:600; }
+  .view-table .tv .cell-state { color:var(--muted); }
+
+  .view-table .tv-title-inner { display:flex; align-items:flex-start; min-width:0; }
+  .view-table .tv-guide { flex:none; width:18px; align-self:stretch; position:relative; }
+  .view-table .tv-guide.line::before { content:''; position:absolute; left:9px; top:0; bottom:0;
+    border-left:1px solid var(--tvline); }
+  .view-table .tv-guide.elbow::after { content:''; position:absolute; left:9px; top:0; height:15px;
+    width:9px; border-left:1px solid var(--tvline); border-bottom:1px solid var(--tvline); border-bottom-left-radius:6px; }
+  .view-table .tv-toggle { flex:none; width:16px; height:16px; margin-right:4px; padding:0; border:none;
+    background:none; cursor:pointer; position:relative; align-self:flex-start; margin-top:1px; }
+  .view-table .tv-toggle::before { content:''; position:absolute; top:50%; left:50%; width:0; height:0;
+    border-left:5px solid var(--muted); border-top:4px solid transparent; border-bottom:4px solid transparent;
+    transform:translate(-50%,-50%); transition:transform .12s; }
+  .view-table .tv-toggle.open::before { transform:translate(-50%,-50%) rotate(90deg); }
+  .view-table .tv-toggle.leaf::before { border:none; width:4px; height:4px; border-radius:50%; background:var(--border); }
+  .view-table .tv-name { min-width:0; }
+  .view-table .tv-name .nm { word-break:break-word; }
+  .view-table .tv-name .kids { display:inline-block; margin-left:6px; font-size:10.5px; font-weight:600;
+    color:var(--muted); background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:0 6px; }
+  .view-table .tv-parent { display:none; font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .view-table .tv-si { position:relative; white-space:pre-wrap; word-break:break-word; }
+  .view-table .tv-si.err { color:var(--bad); }
+  .view-table .tv-si .body { max-height:none; }
+  .view-table .tv-si.clamped .body { max-height:150px; overflow:hidden;
+    -webkit-mask-image:linear-gradient(#000 65%, transparent); mask-image:linear-gradient(#000 65%, transparent); }
+  .view-table .tv-si .more { margin-top:4px; font-size:11px; font-weight:600; color:var(--accent-2);
+    background:none; border:none; padding:0; cursor:pointer; }
+  .view-table .tv-si .none { color:var(--muted); font-style:italic; }
+
+  @media (max-width:760px) {
+    .view-table .tv, .view-table .tv thead, .view-table .tv tbody, .view-table .tv tr, .view-table .tv td { display:block; width:auto; }
+    .view-table .tv thead { position:absolute; left:-9999px; }
+    .view-table .tv colgroup { display:none; }
+    .view-table .tv tbody tr { border:1px solid var(--border); border-radius:10px; margin-bottom:10px; padding:8px 10px; }
+    .view-table .tv tbody tr.err { border-color:var(--bad); }
+    .view-table .tv td { border:none !important; padding:3px 0; }
+    .view-table .tv td::before { content:attr(data-label) ':\A0'; font-weight:600; color:var(--muted); }
+    .view-table .tv td.cell-title::before { content:''; }
+    .view-table .tv-guide { display:none; }
+    .view-table .tv-parent { display:block; }
+  }
 
   /* view: detailed */
   .view-detailed .drow { border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px;
@@ -1010,9 +1054,9 @@ function setStatus(kind, text) {
 /* ---------- results + views ---------- */
 const VIEWS = ['compact', 'tree', 'table', 'detailed', 'outline', 'focus'];
 const LABELS = { compact:'Compact', tree:'Tree', table:'Table', detailed:'Detailed', outline:'Outline', focus:'Info Focus' };
-let currentView = 'tree';
+let currentView = 'table';
 try { const s = localStorage.getItem('tfsView'); if (s && VIEWS.indexOf(s) >= 0) currentView = s; } catch (e) {}
-let roots = null, flat = [], byId = {}, stats = null;
+let roots = null, flat = [], byId = {}, stats = null, collapsed = new Set();
 
 const sw = $('#viewSwitch');
 VIEWS.forEach(v => {
@@ -1040,15 +1084,19 @@ async function loadResults() {
   roots = data.Roots || [];
   flat = [];
   byId = {};
-  (function rec(nodes, depth, parent) {
-    nodes.forEach(n => {
+  (function rec(nodes, depth, parent, ancLast) {
+    nodes.forEach((n, i) => {
       n._depth = depth;
       n._parent = parent;
+      n._last = i === nodes.length - 1;
+      n._ancLast = ancLast;
+      n._kids = n.Children ? n.Children.length : 0;
       byId[n.Id] = n;
       flat.push(n);
-      if (n.Children && n.Children.length) rec(n.Children, depth + 1, n.Id);
+      if (n._kids) rec(n.Children, depth + 1, n.Id, ancLast.concat(n._last));
     });
-  })(roots, 0, null);
+  })(roots, 0, null, []);
+  collapsed = new Set();
 
   stats = { total: flat.length, withInfo: 0, errors: 0, depth: 0 };
   flat.forEach(n => {
@@ -1163,51 +1211,97 @@ function treeNode(n) {
 $('#expandAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open')));
 $('#collapseAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open')));
 
-/* table */
+/* table - primary view: tree-table with full System Info + responsive layout */
+function tableRows() { return flat; }
+function hiddenByCollapse(n) {
+  let p = n._parent;
+  let guard = 0;
+  while (p != null && guard++ < 60) {
+    if (collapsed.has(p)) return true;
+    p = byId[p] ? byId[p]._parent : null;
+  }
+  return false;
+}
 function vTable(vp) {
-  const wrap = el('div', 'twrap');
-  const tbl = el('table');
+  const wrap = el('div', 'tv-wrap');
+  const tbl = el('table', 'tv');
+  const cg = document.createElement('colgroup');
+  ['c-id', 'c-type', 'c-title', 'c-state', 'c-si'].forEach(c => { const col = document.createElement('col'); col.className = c; cg.appendChild(col); });
+  tbl.appendChild(cg);
   const thead = el('thead');
   const htr = el('tr');
-  ['ID', 'Type', 'Title', 'State', 'Info', 'System Info'].forEach((h, i) => {
-    const th = el('th', i === 5 ? 'h-si' : null, h);
-    th.addEventListener('click', () => sortTable(i));
-    htr.appendChild(th);
-  });
-  thead.appendChild(htr); tbl.appendChild(thead);
+  ['ID', 'Type', 'Title', 'State', 'System Info'].forEach(h => htr.appendChild(el('th', null, h)));
+  thead.appendChild(htr);
+  tbl.appendChild(thead);
   const tb = el('tbody');
-  tableRows().forEach(n => tb.appendChild(tableRow(n)));
+  flat.forEach(n => { if (!hiddenByCollapse(n)) tb.appendChild(tableRow(n)); });
   tbl.appendChild(tb);
   wrap.appendChild(tbl);
   vp.appendChild(wrap);
 }
-let sortKey = null, sortDir = 1;
-function tableRows() {
-  if (sortKey == null) return flat;
-  const key = ['Id', 'Type', 'Title', 'State', 'info', 'SystemInfo'][sortKey];
-  return flat.slice().sort((a, b) => {
-    const va = key === 'info' ? (a.Error ? 2 : hasInfo(a) ? 1 : 0) : String(a[key] || '').toLowerCase();
-    const vb = key === 'info' ? (b.Error ? 2 : hasInfo(b) ? 1 : 0) : String(b[key] || '').toLowerCase();
-    return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
-  });
-}
-function sortTable(i) { if (sortKey === i) sortDir = -sortDir; else { sortKey = i; sortDir = 1; } render(); }
 function tableRow(n) {
-  const tr = el('tr');
-  const c1 = el('td'); c1.appendChild(widLink(n)); tr.appendChild(c1);
-  tr.appendChild(el('td', null, n.Type || ''));
-  const c3 = el('td', 't-title');
-  const inner = el('div', 'clip', n.Title || ''); inner.dir = 'auto';
-  inner.style.paddingLeft = (n._depth * 14) + 'px';
-  c3.appendChild(inner); tr.appendChild(c3);
-  tr.appendChild(el('td', null, n.State || ''));
-  const c5 = el('td');
-  c5.appendChild(n.Error ? el('span', 'er', 'ERR') : hasInfo(n) ? el('span', 'yes', 'Yes') : el('span', 'no', 'No'));
-  tr.appendChild(c5);
-  const c6 = el('td', 't-si');
-  const si = el('div', 'clip', n.Error ? n.Error : (n.SystemInfo || '').replace(/\s+/g, ' ').trim());
-  si.title = n.Error || n.SystemInfo || '';
-  c6.appendChild(si); tr.appendChild(c6);
+  const tr = el('tr', n.Error ? 'err' : null);
+
+  const cId = el('td', 'cell-id'); cId.dataset.label = 'ID'; cId.appendChild(widLink(n)); tr.appendChild(cId);
+
+  const cType = el('td', 'cell-type'); cType.dataset.label = 'Type'; cType.appendChild(badge(n)); tr.appendChild(cType);
+
+  const cTitle = el('td', 'cell-title'); cTitle.dataset.label = 'Title';
+  const inner = el('div', 'tv-title-inner');
+  for (let i = 0; i < n._depth; i++) {
+    const g = el('span', 'tv-guide');
+    if (i < n._depth - 1) { if (!n._ancLast[i]) g.classList.add('line'); }
+    else { g.classList.add('elbow'); if (!n._last) g.classList.add('line'); }
+    inner.appendChild(g);
+  }
+  const tog = el('button', 'tv-toggle' + (n._kids ? '' : ' leaf')); tog.type = 'button';
+  if (n._kids) {
+    if (!collapsed.has(n.Id)) tog.classList.add('open');
+    tog.setAttribute('aria-label', 'toggle children');
+    tog.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (collapsed.has(n.Id)) collapsed.delete(n.Id); else collapsed.add(n.Id);
+      render();
+    });
+  }
+  inner.appendChild(tog);
+  const nameWrap = el('div', 'tv-name');
+  const nm = el('span', 'nm', n.Title || '(untitled)'); nm.dir = 'auto';
+  nameWrap.appendChild(nm);
+  if (n._kids) nameWrap.appendChild(el('span', 'kids', n._kids + (n._kids === 1 ? ' child' : ' children')));
+  if (n._parent != null) {
+    const pn = byId[n._parent];
+    nameWrap.appendChild(el('div', 'tv-parent', 'child of #' + n._parent + (pn && pn.Title ? (' - ' + pn.Title) : '')));
+  }
+  inner.appendChild(nameWrap);
+  cTitle.appendChild(inner);
+  tr.appendChild(cTitle);
+
+  const cState = el('td', 'cell-state', n.State || ''); cState.dataset.label = 'State'; tr.appendChild(cState);
+
+  const cSi = el('td', 'cell-si'); cSi.dataset.label = 'System Info';
+  const si = el('div', 'tv-si' + (n.Error ? ' err' : ''));
+  if (n.Error) {
+    si.appendChild(el('div', 'body', n.Error));
+  } else if (hasInfo(n)) {
+    const body = el('div', 'body', n.SystemInfo); body.dir = 'auto';
+    si.appendChild(body);
+    requestAnimationFrame(() => {
+      if (body.scrollHeight > 170) {
+        si.classList.add('clamped');
+        const more = el('button', 'more', 'Show full System Info'); more.type = 'button';
+        more.addEventListener('click', () => {
+          const open = si.classList.toggle('clamped');
+          more.textContent = open ? 'Show full System Info' : 'Show less';
+        });
+        si.appendChild(more);
+      }
+    });
+  } else {
+    si.appendChild(el('div', 'none', 'no System Info'));
+  }
+  cSi.appendChild(si);
+  tr.appendChild(cSi);
   return tr;
 }
 
