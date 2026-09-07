@@ -713,13 +713,14 @@ namespace TfsSystemInfoExtractor
   }
   body { margin:0; background:var(--bg); color:var(--text);
     font:14px/1.55 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif; }
+  a { color:var(--accent-2); }
   .topbar { background:linear-gradient(120deg, #312e81, #4f46e5); color:#fff; padding:18px 24px; }
-  .brand { display:flex; align-items:center; gap:14px; max-width:1080px; margin:0 auto; }
+  .brand { display:flex; align-items:center; gap:14px; max-width:1140px; margin:0 auto; }
   .logo { width:40px; height:40px; border-radius:10px; display:grid; place-items:center;
     background:rgba(255,255,255,.15); font-weight:700; letter-spacing:.5px; font-size:13px; }
   .brand-title { font-size:17px; font-weight:650; }
   .brand-sub { font-size:12.5px; opacity:.82; margin-top:2px; }
-  main { max-width:1080px; margin:24px auto; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
+  main { max-width:1140px; margin:24px auto; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
   .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     padding:18px 20px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
   .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -730,8 +731,7 @@ namespace TfsSystemInfoExtractor
   textarea { width:100%; min-height:96px; resize:vertical; padding:12px 14px; border:1px solid var(--border);
     border-radius:10px; background:var(--surface-2); color:var(--text);
     font:13px/1.5 'Cascadia Code', Consolas, monospace; }
-  textarea:focus, .btn:focus-visible, .file-btn input:focus-visible + span {
-    outline:2px solid var(--accent); outline-offset:1px; }
+  textarea:focus, .btn:focus-visible, .vbtn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
   .actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; align-items:center; }
   .btn { border:1px solid transparent; border-radius:9px; padding:9px 18px; font:inherit;
     font-weight:600; cursor:pointer; transition:background .12s, border-color .12s, opacity .12s; }
@@ -755,47 +755,135 @@ namespace TfsSystemInfoExtractor
   .log { margin:0; background:#0b0e14; color:#c9d5c3; border-radius:10px; padding:14px; height:260px;
     overflow:auto; white-space:pre-wrap; word-break:break-word;
     font:12px/1.55 'Cascadia Code', Consolas, monospace; }
-  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .stats { display:flex; gap:6px; margin-right:6px; flex-wrap:wrap; }
+
+  /* results toolbar */
+  .results-top { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
+  .switch { display:flex; gap:4px; flex-wrap:wrap; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:10px; padding:4px; }
+  .vbtn { border:none; background:none; color:var(--muted); font:inherit; font-weight:600; font-size:12.5px;
+    padding:6px 12px; border-radius:7px; cursor:pointer; }
+  .vbtn:hover { color:var(--text); }
+  .vbtn.active { background:var(--surface); color:var(--accent-2); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .bar2 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .stats { display:flex; gap:6px; flex-wrap:wrap; margin-right:auto; }
   .stat { font-size:12px; color:var(--muted); background:var(--surface-2); border:1px solid var(--border);
     padding:4px 9px; border-radius:999px; }
   .stat b { color:var(--text); }
   .stat.ok b { color:var(--ok); }
   .stat.bad b { color:var(--bad); }
-  .tree { margin-top:4px; }
-  .node-head { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; }
-  .node.has-kids > .node-head { cursor:pointer; }
-  .node-head:hover { background:var(--surface-2); }
-  .twist { flex:none; width:14px; height:14px; padding:0; border:none; background:none; cursor:pointer;
-    position:relative; }
-  .node.has-kids > .node-head > .twist::before { content:''; position:absolute; top:50%; left:50%;
-    width:0; height:0; border-left:5px solid var(--muted); border-top:4px solid transparent;
-    border-bottom:4px solid transparent; transform:translate(-50%,-50%); transition:transform .12s; }
-  .node.has-kids.open > .node-head > .twist::before { transform:translate(-50%,-50%) rotate(90deg); }
+
   .badge { font-size:11px; font-weight:650; padding:2px 8px; border-radius:6px; white-space:nowrap; flex:none;
     background:hsl(var(--h) 60% 92%); color:hsl(var(--h) 55% 32%); }
-  @media (prefers-color-scheme: dark) {
-    .badge { background:hsl(var(--h) 38% 24%); color:hsl(var(--h) 70% 78%); }
-  }
+  @media (prefers-color-scheme: dark) { .badge { background:hsl(var(--h) 38% 24%); color:hsl(var(--h) 70% 78%); } }
   .wid { font-size:12.5px; font-weight:600; color:var(--accent-2); text-decoration:none; white-space:nowrap; flex:none; }
   .wid:hover { text-decoration:underline; }
-  .ntitle { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .state { font-size:11px; color:var(--muted); border:1px solid var(--border); padding:1px 7px;
     border-radius:999px; white-space:nowrap; flex:none; }
-  .kidcount { font-size:11px; font-weight:600; color:var(--muted); background:var(--surface-2);
+  .sysinfo-text { white-space:pre-wrap; word-break:break-word; }
+  .empty { color:var(--muted); font-style:italic; padding:20px; text-align:center; }
+
+  /* view: compact */
+  .view-compact .crow { display:flex; align-items:center; gap:8px; padding:3px 8px; border-radius:6px;
+    font-size:12.5px; min-height:24px; }
+  .view-compact .crow:hover { background:var(--surface-2); }
+  .view-compact .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .view-compact .cid { color:var(--accent-2); font-weight:600; flex:none; }
+  .view-compact .ctitle { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .view-compact .cflag { flex:none; font-size:10px; font-weight:700; width:15px; height:15px; border-radius:4px;
+    display:grid; place-items:center; }
+  .view-compact .cflag.ok { background:rgba(5,150,105,.16); color:var(--ok); }
+  .view-compact .cflag.err { background:rgba(220,38,38,.16); color:var(--bad); }
+
+  /* view: tree */
+  .view-tree .node-head { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; }
+  .view-tree .node.has-kids > .node-head { cursor:pointer; }
+  .view-tree .node-head:hover { background:var(--surface-2); }
+  .view-tree .twist { flex:none; width:14px; height:14px; padding:0; border:none; background:none;
+    cursor:pointer; position:relative; }
+  .view-tree .node.has-kids > .node-head > .twist::before { content:''; position:absolute; top:50%; left:50%;
+    width:0; height:0; border-left:5px solid var(--muted); border-top:4px solid transparent;
+    border-bottom:4px solid transparent; transform:translate(-50%,-50%); transition:transform .12s; }
+  .view-tree .node.has-kids.open > .node-head > .twist::before { transform:translate(-50%,-50%) rotate(90deg); }
+  .view-tree .ntitle { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .view-tree .kidcount { font-size:11px; font-weight:600; color:var(--muted); background:var(--surface-2);
     border:1px solid var(--border); min-width:20px; text-align:center; border-radius:999px; padding:1px 5px; flex:none; }
-  .node-body { padding-left:22px; margin-left:7px; border-left:1px solid var(--border); }
-  .node.has-kids:not(.open) > .node-body { display:none; }
-  .sysinfo { position:relative; background:var(--si-bg); border:1px solid var(--si-border); color:var(--si-text);
-    border-radius:8px; padding:10px 40px 10px 12px; margin:4px 0 8px; }
-  .sysinfo.err { background:rgba(220,38,38,.10); border-color:var(--bad); color:var(--bad); }
-  .sysinfo-text { white-space:pre-wrap; word-break:break-word; font-size:13px; }
+  .view-tree .node-body { padding-left:22px; margin-left:7px; border-left:1px solid var(--border); }
+  .view-tree .node.has-kids:not(.open) > .node-body { display:none; }
+  .view-tree .sysinfo { position:relative; background:var(--si-bg); border:1px solid var(--si-border);
+    color:var(--si-text); border-radius:8px; padding:10px 40px 10px 12px; margin:4px 0 8px; font-size:13px; }
+  .view-tree .sysinfo.err { background:rgba(220,38,38,.10); border-color:var(--bad); color:var(--bad); }
+  .view-tree .noinfo { font-size:12px; color:var(--muted); font-style:italic; margin:2px 0 6px; }
   .copy { position:absolute; top:6px; right:8px; font-size:11px; font-weight:600; border:1px solid var(--si-border);
     background:var(--surface); color:var(--muted); border-radius:6px; padding:2px 8px; cursor:pointer; }
   .copy:hover { color:var(--text); }
-  .noinfo { font-size:12px; color:var(--muted); font-style:italic; margin:2px 0 6px; }
-  .placeholder { color:var(--muted); font-size:13px; padding:8px 0; }
-  @media (max-width:640px) { .ntitle { white-space:normal; } }
+
+  /* view: cards */
+  .view-cards .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; }
+  .view-cards .wcard { border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--surface-2); }
+  .view-cards .wcard.err { border-color:var(--bad); }
+  .view-cards .wc-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .view-cards .wc-title { font-weight:600; margin-bottom:6px; }
+  .view-cards .wc-si { font-size:12.5px; color:var(--si-text); background:var(--si-bg); border:1px solid var(--si-border);
+    border-radius:8px; padding:8px 10px; white-space:pre-wrap; word-break:break-word;
+    display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
+  .view-cards .wc-si.err { color:var(--bad); background:rgba(220,38,38,.10); border-color:var(--bad); }
+  .view-cards .wc-none { font-size:12px; color:var(--muted); font-style:italic; }
+  .view-cards .wc-foot { margin-top:8px; font-size:11px; color:var(--muted); display:flex; gap:10px; }
+
+  /* view: table */
+  .view-table .twrap { overflow-x:auto; }
+  .view-table table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .view-table th, .view-table td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border);
+    vertical-align:top; }
+  .view-table th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; position:sticky; top:0;
+    background:var(--surface); cursor:pointer; white-space:nowrap; }
+  .view-table tr:hover td { background:var(--surface-2); }
+  .view-table td.t-title { max-width:340px; }
+  .view-table td.t-si { max-width:420px; color:var(--muted); }
+  .view-table .clip { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .view-table .yes { color:var(--ok); font-weight:600; }
+  .view-table .no { color:var(--muted); }
+  .view-table .er { color:var(--bad); font-weight:600; }
+
+  /* view: detailed */
+  .view-detailed .drow { border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px;
+    background:var(--surface-2); }
+  .view-detailed .drow.err { border-color:var(--bad); }
+  .view-detailed .d-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .view-detailed .d-head .d-title { font-size:15px; font-weight:650; }
+  .view-detailed dl { display:grid; grid-template-columns:130px 1fr; gap:6px 14px; margin:0 0 12px; font-size:13px; }
+  .view-detailed dt { color:var(--muted); font-weight:600; }
+  .view-detailed dd { margin:0; word-break:break-word; }
+  .view-detailed .d-si { position:relative; background:var(--si-bg); border:1px solid var(--si-border); color:var(--si-text);
+    border-radius:8px; padding:12px 40px 12px 14px; white-space:pre-wrap; word-break:break-word; font-size:13px; }
+  .view-detailed .d-si.err { background:rgba(220,38,38,.10); border-color:var(--bad); color:var(--bad); }
+  .view-detailed .d-si.none { color:var(--muted); font-style:italic; background:none; border-style:dashed; }
+
+  /* view: outline */
+  .view-outline .o-item { margin-bottom:16px; }
+  .view-outline .o-h { font-weight:650; }
+  .view-outline .o-h a { text-decoration:none; }
+  .view-outline .o-meta { font-size:11.5px; color:var(--muted); margin:2px 0 6px; }
+  .view-outline .o-si { white-space:pre-wrap; word-break:break-word; font-size:13px; padding-left:2px;
+    border-left:2px solid var(--si-border); padding-left:12px; }
+  .view-outline .o-si.err { border-color:var(--bad); color:var(--bad); }
+  .view-outline .o-si.none { color:var(--muted); font-style:italic; border-color:var(--border); }
+
+  /* view: focus */
+  .view-focus .f-item { border:1px solid var(--si-border); border-radius:10px; margin-bottom:14px; overflow:hidden; }
+  .view-focus .f-head { background:var(--si-bg); padding:10px 14px; display:flex; align-items:center; gap:10px;
+    flex-wrap:wrap; border-bottom:1px solid var(--si-border); }
+  .view-focus .f-title { font-weight:650; color:var(--si-text); }
+  .view-focus .f-path { font-size:11px; color:var(--muted); width:100%; }
+  .view-focus .f-si { position:relative; padding:14px 44px 14px 16px; white-space:pre-wrap; word-break:break-word;
+    font-size:14px; line-height:1.6; }
+  .view-focus .f-copy { position:absolute; top:10px; right:12px; }
+
+  @media (max-width:640px) {
+    .view-detailed dl { grid-template-columns:1fr; }
+    .view-table td.t-si { display:none; }
+    .view-table th.h-si { display:none; }
+  }
 </style>
 </head>
 <body>
@@ -831,21 +919,23 @@ namespace TfsSystemInfoExtractor
   </section>
 
   <section class='card' id='resultsCard' hidden>
-    <div class='card-head'>
-      <h2>Results</h2>
-      <div class='toolbar'>
+    <div class='card-head'><h2>Results</h2></div>
+    <div class='results-top'>
+      <div class='switch' id='viewSwitch'></div>
+      <div class='bar2'>
         <div class='stats'>
           <span class='stat'><b id='statTotal'>0</b> items</span>
           <span class='stat ok'><b id='statInfo'>0</b> with info</span>
           <span class='stat bad' id='statErrWrap' hidden><b id='statErr'>0</b> errors</span>
+          <span class='stat'>depth <b id='statDepth'>0</b></span>
         </div>
-        <button class='btn ghost sm' id='expandAll' type='button'>Expand all</button>
-        <button class='btn ghost sm' id='collapseAll' type='button'>Collapse all</button>
+        <button class='btn ghost sm' id='expandAll' type='button' hidden>Expand all</button>
+        <button class='btn ghost sm' id='collapseAll' type='button' hidden>Collapse all</button>
         <button class='btn ok sm' id='dlJson' type='button'>JSON</button>
         <button class='btn ok sm' id='dlMd' type='button'>Markdown</button>
       </div>
     </div>
-    <div class='tree' id='tree'></div>
+    <div class='viewport' id='viewport'></div>
   </section>
 </main>
 <script>
@@ -904,7 +994,7 @@ async function poll() {
   $('#runBtn').textContent = 'Run';
   if (data.error) setStatus('error', data.error);
   else setStatus('done', 'Done - ' + data.processed + ' work items');
-  if (data.hasFiles) { $('#resultsCard').hidden = false; loadTree(); }
+  if (data.hasFiles) { $('#resultsCard').hidden = false; loadResults(); }
 }
 function setStatus(kind, text) {
   const el = $('#status');
@@ -912,134 +1002,310 @@ function setStatus(kind, text) {
   el.textContent = text;
 }
 
-let stats;
-async function loadTree() {
-  const tree = $('#tree');
+/* ---------- results + views ---------- */
+const VIEWS = ['compact', 'tree', 'cards', 'table', 'detailed', 'outline', 'focus'];
+const LABELS = { compact:'Compact', tree:'Tree', cards:'Cards', table:'Table', detailed:'Detailed', outline:'Outline', focus:'Info Focus' };
+let currentView = 'tree';
+try { const s = localStorage.getItem('tfsView'); if (s && VIEWS.indexOf(s) >= 0) currentView = s; } catch (e) {}
+let roots = null, flat = [], byId = {}, stats = null;
+
+const sw = $('#viewSwitch');
+VIEWS.forEach(v => {
+  const b = document.createElement('button');
+  b.className = 'vbtn';
+  b.type = 'button';
+  b.dataset.view = v;
+  b.textContent = LABELS[v];
+  b.addEventListener('click', () => setView(v));
+  sw.appendChild(b);
+});
+function setView(v) {
+  currentView = v;
+  try { localStorage.setItem('tfsView', v); } catch (e) {}
+  document.querySelectorAll('#viewSwitch .vbtn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  const isTree = v === 'tree';
+  $('#expandAll').hidden = !isTree;
+  $('#collapseAll').hidden = !isTree;
+  if (roots) render();
+}
+
+async function loadResults() {
   const r = await fetch('/api/download?jobId=' + jobId + '&type=json');
   const data = await r.json();
-  stats = { total: 0, withInfo: 0, errors: 0 };
-  tree.innerHTML = '';
-  data.Roots.forEach(n => tree.appendChild(renderNode(n, 0)));
+  roots = data.Roots || [];
+  flat = [];
+  byId = {};
+  (function rec(nodes, depth, parent) {
+    nodes.forEach(n => {
+      n._depth = depth;
+      n._parent = parent;
+      byId[n.Id] = n;
+      flat.push(n);
+      if (n.Children && n.Children.length) rec(n.Children, depth + 1, n.Id);
+    });
+  })(roots, 0, null);
+
+  stats = { total: flat.length, withInfo: 0, errors: 0, depth: 0 };
+  flat.forEach(n => {
+    if (n.Error) stats.errors++;
+    else if (hasInfo(n)) stats.withInfo++;
+    if (n._depth > stats.depth) stats.depth = n._depth;
+  });
   $('#statTotal').textContent = stats.total;
   $('#statInfo').textContent = stats.withInfo;
   $('#statErr').textContent = stats.errors;
   $('#statErrWrap').hidden = stats.errors === 0;
-}
-function hueOf(type) {
-  let h = 0;
-  for (const c of (type || '?')) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
-}
-function renderNode(n, depth) {
-  stats.total++;
-  if (n.Error) stats.errors++;
-  else if (n.SystemInfo) stats.withInfo++;
+  $('#statDepth').textContent = stats.depth;
 
+  setView(currentView);
+}
+
+function hasInfo(n) { return !n.Error && n.SystemInfo != null && String(n.SystemInfo).trim() !== ''; }
+function hue(t) { let h = 0; for (const c of (t || '?')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function badge(n) { const b = el('span', 'badge', n.Type || '?'); b.style.setProperty('--h', hue(n.Type)); return b; }
+function widLink(n, cls) {
+  const a = el('a', cls || 'wid', '#' + n.Id);
+  if (n.Url) { a.href = n.Url; a.target = '_blank'; a.rel = 'noopener'; }
+  return a;
+}
+function copyBtn(text, cls) {
+  const b = el('button', (cls || 'copy'), 'Copy');
+  b.type = 'button';
+  b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
+    b.textContent = 'Copied';
+    setTimeout(() => { b.textContent = 'Copy'; }, 1200);
+  });
+  return b;
+}
+function pathOf(n) {
+  const parts = [];
+  let cur = byId[n._parent];
+  let guard = 0;
+  while (cur && guard++ < 50) { parts.unshift('#' + cur.Id + ' ' + (cur.Title || '')); cur = byId[cur._parent]; }
+  return parts.join('  >  ');
+}
+
+function render() {
+  const vp = $('#viewport');
+  vp.className = 'viewport view-' + currentView;
+  vp.innerHTML = '';
+  const fn = { compact: vCompact, tree: vTree, cards: vCards, table: vTable, detailed: vDetailed, outline: vOutline, focus: vFocus }[currentView];
+  fn(vp);
+}
+
+/* 1. compact */
+function vCompact(vp) {
+  flat.forEach(n => {
+    const row = el('div', 'crow');
+    row.style.paddingLeft = (8 + n._depth * 16) + 'px';
+    const d = el('span', 'dot');
+    d.style.background = 'hsl(' + hue(n.Type) + ' 60% 55%)';
+    row.appendChild(d);
+    row.appendChild(el('span', 'cid', '#' + n.Id));
+    const t = el('span', 'ctitle', n.Title || '(untitled)');
+    t.dir = 'auto';
+    t.title = n.Type + ' - ' + (n.State || '');
+    row.appendChild(t);
+    if (n.Error) row.appendChild(el('span', 'cflag err', '!'));
+    else if (hasInfo(n)) row.appendChild(el('span', 'cflag ok', 'i'));
+    vp.appendChild(row);
+  });
+}
+
+/* 2. tree */
+function vTree(vp) { roots.forEach(n => vp.appendChild(treeNode(n))); }
+function treeNode(n) {
   const hasKids = !!(n.Children && n.Children.length);
-  const node = document.createElement('div');
-  node.className = 'node' + (hasKids ? ' has-kids' : '');
-
-  const head = document.createElement('div');
-  head.className = 'node-head';
-
-  const tw = document.createElement('button');
-  tw.className = 'twist';
-  tw.type = 'button';
-  tw.setAttribute('aria-label', 'toggle');
-  tw.style.visibility = hasKids ? 'visible' : 'hidden';
+  const node = el('div', 'node' + (hasKids ? ' has-kids' : ''));
+  const head = el('div', 'node-head');
+  const tw = el('button', 'twist'); tw.type = 'button'; tw.style.visibility = hasKids ? 'visible' : 'hidden';
   head.appendChild(tw);
-
-  const badge = document.createElement('span');
-  badge.className = 'badge';
-  badge.style.setProperty('--h', hueOf(n.Type));
-  badge.textContent = n.Type || '?';
-  head.appendChild(badge);
-
-  const id = document.createElement('a');
-  id.className = 'wid';
-  id.textContent = '#' + n.Id;
-  if (n.Url) { id.href = n.Url; id.target = '_blank'; id.rel = 'noopener'; }
-  head.appendChild(id);
-
-  const title = document.createElement('span');
-  title.className = 'ntitle';
-  title.dir = 'auto';
-  title.textContent = n.Title || '';
-  head.appendChild(title);
-
-  if (n.State) {
-    const st = document.createElement('span');
-    st.className = 'state';
-    st.textContent = n.State;
-    head.appendChild(st);
-  }
-  if (hasKids) {
-    const cc = document.createElement('span');
-    cc.className = 'kidcount';
-    cc.textContent = n.Children.length;
-    head.appendChild(cc);
-  }
+  head.appendChild(badge(n));
+  head.appendChild(widLink(n));
+  const t = el('span', 'ntitle', n.Title || ''); t.dir = 'auto'; head.appendChild(t);
+  if (n.State) head.appendChild(el('span', 'state', n.State));
+  if (hasKids) head.appendChild(el('span', 'kidcount', n.Children.length));
   node.appendChild(head);
 
-  const body = document.createElement('div');
-  body.className = 'node-body';
-
+  const body = el('div', 'node-body');
   if (n.Error) {
-    const e = document.createElement('div');
-    e.className = 'sysinfo err';
-    const t = document.createElement('div');
-    t.className = 'sysinfo-text';
-    t.textContent = n.Error;
-    e.appendChild(t);
-    body.appendChild(e);
-  } else if (n.SystemInfo) {
-    const wrap = document.createElement('div');
-    wrap.className = 'sysinfo';
-    const cp = document.createElement('button');
-    cp.className = 'copy';
-    cp.type = 'button';
-    cp.textContent = 'Copy';
-    cp.addEventListener('click', ev => {
-      ev.stopPropagation();
-      if (navigator.clipboard) navigator.clipboard.writeText(n.SystemInfo);
-      cp.textContent = 'Copied';
-      setTimeout(() => { cp.textContent = 'Copy'; }, 1200);
-    });
-    const t = document.createElement('div');
-    t.className = 'sysinfo-text';
-    t.dir = 'auto';
-    t.textContent = n.SystemInfo;
-    wrap.appendChild(cp);
-    wrap.appendChild(t);
-    body.appendChild(wrap);
+    const e = el('div', 'sysinfo err'); e.appendChild(el('div', 'sysinfo-text', n.Error)); body.appendChild(e);
+  } else if (hasInfo(n)) {
+    const w = el('div', 'sysinfo');
+    w.appendChild(copyBtn(n.SystemInfo));
+    const tx = el('div', 'sysinfo-text', n.SystemInfo); tx.dir = 'auto';
+    w.appendChild(tx); body.appendChild(w);
   } else {
-    const em = document.createElement('div');
-    em.className = 'noinfo';
-    em.textContent = 'No System Info';
-    body.appendChild(em);
+    body.appendChild(el('div', 'noinfo', 'No System Info'));
   }
-
-  if (hasKids) {
-    const kids = document.createElement('div');
-    n.Children.forEach(c => kids.appendChild(renderNode(c, depth + 1)));
-    body.appendChild(kids);
-  }
+  if (hasKids) { const k = el('div'); n.Children.forEach(c => k.appendChild(treeNode(c))); body.appendChild(k); }
   node.appendChild(body);
 
   if (hasKids) {
-    head.addEventListener('click', e => {
-      if (e.target.closest('a')) return;
-      node.classList.toggle('open');
-    });
-    if (depth < 1) node.classList.add('open');
+    head.addEventListener('click', e => { if (!e.target.closest('a')) node.classList.toggle('open'); });
+    if (n._depth < 1) node.classList.add('open');
   }
   return node;
 }
-$('#expandAll').addEventListener('click', () => setAll(true));
-$('#collapseAll').addEventListener('click', () => setAll(false));
-function setAll(open) {
-  document.querySelectorAll('#tree .node.has-kids').forEach(n => n.classList.toggle('open', open));
+$('#expandAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open')));
+$('#collapseAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open')));
+
+/* 3. cards */
+function vCards(vp) {
+  const grid = el('div', 'grid');
+  flat.forEach(n => {
+    const c = el('div', 'wcard' + (n.Error ? ' err' : ''));
+    const h = el('div', 'wc-head');
+    h.appendChild(badge(n));
+    h.appendChild(widLink(n));
+    if (n.State) h.appendChild(el('span', 'state', n.State));
+    c.appendChild(h);
+    const t = el('div', 'wc-title', n.Title || ''); t.dir = 'auto'; c.appendChild(t);
+    if (n.Error) { const s = el('div', 'wc-si err', n.Error); c.appendChild(s); }
+    else if (hasInfo(n)) { const s = el('div', 'wc-si', n.SystemInfo); s.dir = 'auto'; c.appendChild(s); }
+    else c.appendChild(el('div', 'wc-none', 'No System Info'));
+    const f = el('div', 'wc-foot');
+    f.appendChild(el('span', null, 'depth ' + n._depth));
+    f.appendChild(el('span', null, (n.Children ? n.Children.length : 0) + ' children'));
+    c.appendChild(f);
+    grid.appendChild(c);
+  });
+  vp.appendChild(grid);
 }
+
+/* 4. table */
+function vTable(vp) {
+  const wrap = el('div', 'twrap');
+  const tbl = el('table');
+  const thead = el('thead');
+  const htr = el('tr');
+  ['ID', 'Type', 'Title', 'State', 'Info', 'System Info'].forEach((h, i) => {
+    const th = el('th', i === 5 ? 'h-si' : null, h);
+    th.addEventListener('click', () => sortTable(i));
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr); tbl.appendChild(thead);
+  const tb = el('tbody');
+  tableRows().forEach(n => tb.appendChild(tableRow(n)));
+  tbl.appendChild(tb);
+  wrap.appendChild(tbl);
+  vp.appendChild(wrap);
+}
+let sortKey = null, sortDir = 1;
+function tableRows() {
+  if (sortKey == null) return flat;
+  const key = ['Id', 'Type', 'Title', 'State', 'info', 'SystemInfo'][sortKey];
+  return flat.slice().sort((a, b) => {
+    const va = key === 'info' ? (a.Error ? 2 : hasInfo(a) ? 1 : 0) : String(a[key] || '').toLowerCase();
+    const vb = key === 'info' ? (b.Error ? 2 : hasInfo(b) ? 1 : 0) : String(b[key] || '').toLowerCase();
+    return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+  });
+}
+function sortTable(i) { if (sortKey === i) sortDir = -sortDir; else { sortKey = i; sortDir = 1; } render(); }
+function tableRow(n) {
+  const tr = el('tr');
+  const c1 = el('td'); c1.appendChild(widLink(n)); tr.appendChild(c1);
+  tr.appendChild(el('td', null, n.Type || ''));
+  const c3 = el('td', 't-title');
+  const inner = el('div', 'clip', n.Title || ''); inner.dir = 'auto';
+  inner.style.paddingLeft = (n._depth * 14) + 'px';
+  c3.appendChild(inner); tr.appendChild(c3);
+  tr.appendChild(el('td', null, n.State || ''));
+  const c5 = el('td');
+  c5.appendChild(n.Error ? el('span', 'er', 'ERR') : hasInfo(n) ? el('span', 'yes', 'Yes') : el('span', 'no', 'No'));
+  tr.appendChild(c5);
+  const c6 = el('td', 't-si');
+  const si = el('div', 'clip', n.Error ? n.Error : (n.SystemInfo || '').replace(/\s+/g, ' ').trim());
+  si.title = n.Error || n.SystemInfo || '';
+  c6.appendChild(si); tr.appendChild(c6);
+  return tr;
+}
+
+/* 5. detailed */
+function vDetailed(vp) {
+  flat.forEach(n => {
+    const d = el('div', 'drow' + (n.Error ? ' err' : ''));
+    const h = el('div', 'd-head');
+    h.appendChild(badge(n));
+    h.appendChild(widLink(n));
+    const t = el('span', 'd-title', n.Title || ''); t.dir = 'auto'; h.appendChild(t);
+    if (n.State) h.appendChild(el('span', 'state', n.State));
+    d.appendChild(h);
+
+    const dl = el('dl');
+    const add = (k, v, isLink) => {
+      dl.appendChild(el('dt', null, k));
+      if (isLink && v) { const dd = el('dd'); const a = el('a', null, v); a.href = v; a.target = '_blank'; a.rel = 'noopener'; dd.appendChild(a); dl.appendChild(dd); }
+      else dl.appendChild(el('dd', null, v || '-'));
+    };
+    add('Depth', String(n._depth));
+    add('Parent', n._parent != null ? ('#' + n._parent) : '(root)');
+    add('Type', n.Type);
+    add('State', n.State);
+    add('Children', String(n.Children ? n.Children.length : 0));
+    add('URL', n.Url, true);
+    d.appendChild(dl);
+
+    let si;
+    if (n.Error) si = el('div', 'd-si err', n.Error);
+    else if (hasInfo(n)) { si = el('div', 'd-si'); si.appendChild(copyBtn(n.SystemInfo)); const tx = el('div', 'sysinfo-text', n.SystemInfo); tx.dir = 'auto'; si.appendChild(tx); }
+    else si = el('div', 'd-si none', 'No System Info recorded on this work item.');
+    d.appendChild(si);
+    vp.appendChild(d);
+  });
+}
+
+/* 6. outline */
+function vOutline(vp) {
+  flat.forEach(n => {
+    const item = el('div', 'o-item');
+    item.style.marginLeft = (n._depth * 18) + 'px';
+    const lvl = Math.min(n._depth + 2, 6);
+    const h = el('h' + lvl, 'o-h');
+    h.appendChild(widLink(n));
+    h.appendChild(document.createTextNode(' ' + (n.Title || '')));
+    item.appendChild(h);
+    item.appendChild(el('div', 'o-meta', (n.Type || '?') + (n.State ? (' - ' + n.State) : '')));
+    let si;
+    if (n.Error) si = el('div', 'o-si err', n.Error);
+    else if (hasInfo(n)) { si = el('div', 'o-si'); si.dir = 'auto'; si.textContent = n.SystemInfo; }
+    else si = el('div', 'o-si none', '(no system info)');
+    item.appendChild(si);
+    vp.appendChild(item);
+  });
+}
+
+/* 7. focus */
+function vFocus(vp) {
+  const items = flat.filter(hasInfo);
+  if (!items.length) { vp.appendChild(el('div', 'empty', 'No work items had a System Info value.')); return; }
+  items.forEach(n => {
+    const box = el('div', 'f-item');
+    const h = el('div', 'f-head');
+    h.appendChild(badge(n));
+    h.appendChild(widLink(n));
+    const t = el('span', 'f-title', n.Title || ''); t.dir = 'auto'; h.appendChild(t);
+    if (n.State) h.appendChild(el('span', 'state', n.State));
+    const p = pathOf(n);
+    if (p) h.appendChild(el('div', 'f-path', p));
+    box.appendChild(h);
+    const si = el('div', 'f-si');
+    si.appendChild(copyBtn(n.SystemInfo, 'copy f-copy'));
+    const tx = el('div', 'sysinfo-text', n.SystemInfo); tx.dir = 'auto';
+    si.appendChild(tx);
+    box.appendChild(si);
+    vp.appendChild(box);
+  });
+}
+
 $('#dlJson').addEventListener('click', () => { if (jobId) location.href = '/api/download?jobId=' + jobId + '&type=json'; });
 $('#dlMd').addEventListener('click', () => { if (jobId) location.href = '/api/download?jobId=' + jobId + '&type=md'; });
 updateCount();
