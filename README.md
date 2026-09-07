@@ -1,63 +1,99 @@
-# TFS System Info Extractor (local UI edition)
+# TFS System Info Extractor
 
-Same extraction logic as the console-only spec, plus a tiny local browser UI
-so you can paste/upload Work Item IDs and **download the JSON and Markdown
-files straight from the browser**, in addition to the files it still writes
-to `C:\TfsSystemInfoExport`.
+Recursively walks a set of TFS / Azure DevOps Server work item hierarchies
+(`System.LinkTypes.Hierarchy-Forward` children only), pulls the custom
+**System Info** field from every item, and presents the result in a small
+local browser UI with JSON / Markdown / CSV export.
 
-Nothing is deployed anywhere — running the exe starts a web server that only
-listens on `localhost`, and opens your default browser to it automatically.
-Windows Authentication (your logged-in user) is used for TFS, same as before.
+Nothing is deployed anywhere — running the exe starts an `HttpListener` that
+only listens on `localhost` and opens your default browser to it. TFS is
+accessed read-only with Windows integrated authentication (your logged-in
+user); no PAT.
+
+## Solution layout
+
+```
+src/
+  TfsSystemInfoExtractor.Core            domain models + application services + ports
+      Model/            WorkItemNode, RawWorkItem, ExtractionResult, ExportArtifact, ...
+      Abstractions/     IWorkItemSource, ISystemInfoFieldResolver, IHtmlToText,
+                        IProgressListener, IExportFormatter, IExtractionArtifactStore, ISystemClock
+      Extraction/       WorkItemIdParser, HierarchyWalker, ExtractionService
+      Export/           Json / Markdown / Csv formatters + ExportFormatterSelector
+      Exceptions/       TfsExtractorException hierarchy
+  TfsSystemInfoExtractor.Infrastructure  adapters
+      Tfs/              TfsRestClient, TfsWorkItemSource, TfsSystemInfoFieldResolver, TfsResponseMapper
+      Text/             HtmlToPlainTextConverter
+      Storage/          FileSystemArtifactStore
+      Configuration/    TfsOptions, ExportOptions, TfsOptionsValidator
+  TfsSystemInfoExtractor.Web             presentation
+      Hosting/          LocalHttpServer, BrowserLauncher
+      Http/             RequestRouter, ResponseWriter, IHttpEndpoint
+      Endpoints/        Index, StartExtraction, JobStatus, DownloadArtifact
+      Jobs/             ExtractionJob, InMemoryJobStore, JobManager, JobProgressListener
+      Ui/Assets/        index.html  (embedded resource — the whole browser UI)
+  TfsSystemInfoExtractor.App             composition root (the exe)
+tests/
+  TfsSystemInfoExtractor.Tests           xUnit
+```
+
+Each layer exposes an `AddXxx(IConfiguration)` extension; `App/Program.cs` is
+only wiring: build config → `AddExtractorCore` / `AddTfsInfrastructure` /
+`AddWebUi` → run `LocalHttpServer` until Ctrl+C.
 
 ## 1. Configure
 
-Open `Program.cs`, edit the constants at the top (`Config` class):
+Edit `src/TfsSystemInfoExtractor.App/appsettings.json` (no rebuild needed):
 
-- `TfsCollectionUrl` — your on-prem collection URL.
-- `ApiVersion` — REST API version compatible with your TFS server (default `3.0`;
-  change to `1.0`/`2.0`/etc. if your on-prem version needs it).
-- `HttpPort` — local port for the UI (default `5050`).
-- `ExportFolder` — default `C:\TfsSystemInfoExport`.
+| Setting | Meaning | Default |
+|---|---|---|
+| `Tfs:CollectionUrl` | on-prem collection URL | `http://192.168.160.17:8080/tfs/Altshuler%20Shaham%20IT` |
+| `Tfs:ApiVersion` | REST API version | `3.0` |
+| `Tfs:SystemInfoFieldDisplayName` | field to extract, by display name | `System Info` |
+| `Tfs:RequestTimeoutSeconds` | per-request timeout | `60` |
+| `Export:OutputDirectory` | folder every export is also written to | `C:\TfsSystemInfoExport` |
+| `Web:Port` | loopback port for the UI | `5050` |
+| `Web:OpenBrowserOnStart` | open the browser on launch | `true` |
+| `Extraction:MaxDepth` | hierarchy depth safety cap | `50` |
+
+Any value can be overridden with an environment variable using the `TFS_`
+prefix and `__` as the separator, e.g.
+`set TFS_Tfs__CollectionUrl=http://other:8080/tfs/Coll`.
+A git-ignored `appsettings.local.json` next to the exe is also honoured.
 
 ## 2. Build
 
-Requires Windows + the .NET Framework 4.7.2 targeting pack (already present
-if you have Visual Studio 2017+ installed).
-
-**Visual Studio:** open the folder, let it generate a solution, Build.
-
-**Command line** (needs the .NET SDK installed, even though the app targets
-.NET Framework):
+Requires Windows, the .NET SDK, and the .NET Framework 4.7.2 targeting pack
+(ships with Visual Studio 2017+).
 
 ```
-dotnet build -c Release
+dotnet build TfsSystemInfoExtractor.sln -c Release
+dotnet test  TfsSystemInfoExtractor.sln -c Release
 ```
+
+Visual Studio: open `TfsSystemInfoExtractor.sln`, Build, F5 the `App` project.
 
 ## 3. Run
 
 ```
-bin\Release\net472\TfsSystemInfoExtractor.exe
+src\TfsSystemInfoExtractor.App\bin\Release\net472\TfsSystemInfoExtractor.exe
 ```
 
-Your browser opens automatically at `http://localhost:5050`. Paste Work Item
-IDs (comma / space / newline separated) or upload a `.txt`/`.csv` file with
-IDs, click **Run**, watch the live progress log, then use the tree view or
-the **Download JSON** / **Download Markdown** buttons.
+The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
+space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
+the live log, then browse the result (Table view by default, six views
+total) and use **Download / Export** (CSV / JSON / Markdown). The same files
+are written to the export folder.
 
-## Notes / assumptions carried over from the original spec
+## Behaviour / assumptions
 
-- Only `System.LinkTypes.Hierarchy-Forward` relations are traversed as
-  children; everything else (Parent, Related, attachments, links, etc.) is
-  ignored.
-- The `System Info` field's technical reference name is discovered at
-  startup from `_apis/wit/fields` by display name — never hardcoded.
-- A Work Item already fetched in the current run (by ID) is never re-fetched;
-  this also guards against hierarchy loops and infinite recursion. If the
-  same ID legitimately appears under two different parents, it is only
-  expanded once (under whichever parent reaches it first) — this was an
-  explicit assumption to keep the loop guard simple; say the word if you'd
-  rather see it repeated under every parent instead.
-- Rich text `System Info` is converted to plain text (`<br>`, `<p>`, `<div>`,
-  `<li>` become line breaks; all other tags are stripped; HTML entities are
-  decoded). Empty `System Info` never stops traversal.
-- The app is fully read-only against TFS.
+- Only `System.LinkTypes.Hierarchy-Forward` relations are followed as children.
+- The System Info field's reference name is discovered at run time from
+  `_apis/wit/fields` by display name — never hard-coded.
+- Each work item is fetched once per run; this also guards against link
+  cycles. A child reachable from two parents is expanded only under the
+  first parent that reaches it.
+- Rich-text System Info is converted to plain text (`<br>`, `<p>`, `<div>`,
+  `<li>` become newlines; other tags stripped; entities decoded).
+- An item that fails to load becomes an error node; the run continues.
+- Fully read-only against TFS.
