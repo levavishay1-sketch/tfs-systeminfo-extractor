@@ -3,7 +3,7 @@
 Recursively walks a set of TFS / Azure DevOps Server work item hierarchies
 (`System.LinkTypes.Hierarchy-Forward` children only), pulls the custom
 **System Info** field from every item, and presents the result in a small
-local browser UI with JSON / Markdown / CSV export.
+local browser UI with CSV / PDF / JSON / Markdown export.
 
 Nothing is deployed anywhere — running the exe starts an `HttpListener` that
 only listens on `localhost` and opens your default browser to it. TFS is
@@ -18,21 +18,24 @@ src/
       Model/            WorkItemNode, RawWorkItem, ExtractionResult, ExportArtifact,
                         FieldDefinition, SourceControl/ (SourceControlInfo, SourceRepository, Commit, Developer)
       Abstractions/     IWorkItemSource, ISystemInfoFieldResolver, IFieldCatalog, IHtmlToText,
-                        IProgressListener, IExportFormatter, IExtractionArtifactStore, ISystemClock
+                        IProgressListener, IExtractionArtifactStore, ISystemClock
       Extraction/       WorkItemIdParser, HierarchyWalker, ExtractionService
-      Export/           Json / Markdown / Csv formatters + ExportFormatterSelector
-      Exceptions/       TfsExtractorException hierarchy
+      Export/           ExportArtifact/Format helpers, JsonExportFormatter (the data feed)
+      Reporting/        ReportView, IReportRenderer, ReportRendererSelector,
+                        Csv / Markdown renderers, IBrowserPdfEngine
+      Exceptions/       TfsExtractorException hierarchy (incl. PdfRenderException, BrowserNotFoundException)
   TfsSystemInfoExtractor.Infrastructure  adapters
       Tfs/              TfsRestClient, TfsWorkItemSource, TfsFieldCatalog,
                         TfsSystemInfoFieldResolver, TfsResponseMapper
       Text/             HtmlToPlainTextConverter
-      Export/           PdfExportFormatter, PdfReportDocumentBuilder  (IExportFormatter with a PDF dependency)
+      Export/           ChromiumBrowserLocator, EdgeHtmlToPdfEngine  (headless Edge/Chrome -> PDF)
       Storage/          FileSystemArtifactStore
       Configuration/    TfsOptions, ExportOptions, TfsOptionsValidator
   TfsSystemInfoExtractor.Web             presentation
       Hosting/          LocalHttpServer, BrowserLauncher
       Http/             RequestRouter, ResponseWriter, IHttpEndpoint
-      Endpoints/        Index, StartExtraction, JobStatus, DownloadArtifact
+      Endpoints/        Index, StartExtraction, JobStatus, Result, Export
+      Export/           HtmlToPdfReportRenderer  (wraps the UI's own HTML/CSS)
       Jobs/             ExtractionJob, InMemoryJobStore, JobManager, JobProgressListener
       Ui/Assets/        index.html  (embedded resource — the whole browser UI)
   TfsSystemInfoExtractor.App             composition root (the exe)
@@ -54,7 +57,9 @@ Edit `src/TfsSystemInfoExtractor.App/appsettings.json` (no rebuild needed):
 | `Tfs:ApiVersion` | REST API version | `3.0` |
 | `Tfs:SystemInfoFieldDisplayName` | field to extract, by display name | `System Info` |
 | `Tfs:RequestTimeoutSeconds` | per-request timeout | `60` |
-| `Export:OutputDirectory` | folder every export is also written to | `C:\TfsSystemInfoExport` |
+| `Export:OutputDirectory` | folder a copy of each export is saved to on click | `C:\TfsSystemInfoExport` |
+| `Export:BrowserPath` | explicit path to msedge.exe / chrome.exe for PDF (empty = auto-detect) | `` |
+| `Export:PdfTimeoutSeconds` | hard timeout for one PDF render | `40` |
 | `Web:Port` | loopback port for the UI | `5050` |
 | `Web:OpenBrowserOnStart` | open the browser on launch | `true` |
 | `Extraction:MaxDepth` | hierarchy depth safety cap | `50` |
@@ -85,23 +90,35 @@ src\TfsSystemInfoExtractor.App\bin\Release\net472\TfsSystemInfoExtractor.exe
 The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
 space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
 the live log, then browse the result (grouped Table view by default; also
-Compact, Tree, Outline, Info Focus) and use **Download / Export**
-(CSV, PDF release report, JSON, Markdown). The same files are written to
-the export folder.
+Compact, Tree, Outline, Info Focus).
 
-In the Table view the **with info** count is a toggle that filters to the
-Work Items that have System Info (parent rows kept for context), and
-**Fields** lets advanced users add extra columns for any additional TFS
-field found on the extracted items (the list is built from the TFS field
-catalogue, `_apis/wit/fields`; selections persist per browser). The
-default columns and layout are unchanged; the hierarchy is shown in the
-Type column.
+In the Table view the **with info** count is a toggle that filters to only
+the Work Items that have System Info, and **Fields** lets advanced users add
+extra columns for any additional TFS field found on the extracted items (the
+list comes from the TFS field catalogue, `_apis/wit/fields`; selections
+persist per browser). The default columns and layout are unchanged; the
+hierarchy is shown in the Type column.
 
-Every export format is an `IExportFormatter` (Core port). Pure formatters
-(JSON / Markdown / CSV) live in Core; the PDF formatter lives in
-Infrastructure because it carries a third-party dependency (PDFsharp /
-MigraDoc). Adding a format = one new `IExportFormatter` + one DI line;
-no Core logic changes.
+## Export
+
+**Download / Export** offers **CSV**, **PDF**, **PDF System Info**, **JSON**
+(raw data) and **Markdown**. Nothing is generated until you click one -
+loading, browsing, filtering and changing columns produce no files.
+
+At the moment of the click the browser hands the server the exact view it is
+showing (columns, order, active filter, hierarchy, the added fields, and the
+rendered table HTML). The matching `IReportRenderer` turns that into a file
+that is streamed to you and also saved to `Export:OutputDirectory`.
+
+- **PDF / PDF System Info** are produced by the machine's own headless
+  **Edge or Chrome** (`--print-to-pdf`) rendering the UI's own HTML/CSS - so
+  the PDF looks like the table, and Hebrew / RTL / mixed text render
+  correctly (Chromium's bidi). No PDF library, no bundled browser, no
+  licence. "PDF System Info" is the same view with the System-Info-only
+  filter applied. If no browser is found, PDF export returns a clear message
+  and CSV / Markdown still work.
+- Adding a new format = one new `IReportRenderer` + one DI line; no change to
+  the domain, the extraction pipeline or the UI's view logic.
 
 ## Behaviour / assumptions
 

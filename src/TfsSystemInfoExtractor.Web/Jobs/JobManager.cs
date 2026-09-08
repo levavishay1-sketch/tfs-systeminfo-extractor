@@ -4,8 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TfsSystemInfoExtractor.Core.Abstractions;
-using TfsSystemInfoExtractor.Core.Export;
 using TfsSystemInfoExtractor.Core.Extraction;
 using TfsSystemInfoExtractor.Core.Model;
 
@@ -18,8 +16,9 @@ namespace TfsSystemInfoExtractor.Web.Jobs
 
     /// <summary>
     /// Owns the lifecycle of a background extraction: creates the <see cref="ExtractionJob"/>,
-    /// runs <see cref="ExtractionService"/> inside its own DI scope, renders every export
-    /// format into the job and persists each artifact to disk, then flips the job's status.
+    /// runs <see cref="ExtractionService"/> inside its own DI scope, and stores the
+    /// result on the job. It renders nothing and writes no files - exports happen only
+    /// when the user explicitly clicks an export action.
     /// </summary>
     public sealed class JobManager : IJobManager
     {
@@ -53,28 +52,14 @@ namespace TfsSystemInfoExtractor.Web.Jobs
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                var services = scope.ServiceProvider;
-
-                var extraction = services.GetRequiredService<ExtractionService>();
-                var formatters = services.GetRequiredService<ExportFormatterSelector>();
-                var store = services.GetRequiredService<IExtractionArtifactStore>();
-
+                var extraction = scope.ServiceProvider.GetRequiredService<ExtractionService>();
                 var progress = new JobProgressListener(job, _loggerFactory.CreateLogger("Extraction"));
 
                 var result = await extraction
                     .ExtractAsync(new ExtractionRequest(workItemIds), progress, CancellationToken.None)
                     .ConfigureAwait(false);
 
-                var artifacts = new Dictionary<ExportFormat, ExportArtifact>();
-                foreach (var formatter in formatters.All)
-                {
-                    var artifact = formatter.Render(result);
-                    artifacts[artifact.Format] = artifact;
-                    var path = await store.SaveAsync(artifact, CancellationToken.None).ConfigureAwait(false);
-                    progress.Report(0, $"{artifact.Format}: {path}");
-                }
-
-                job.Complete(artifacts);
+                job.Complete(result);
             }
             catch (Exception ex)
             {

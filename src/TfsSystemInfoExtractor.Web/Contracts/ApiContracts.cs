@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TfsSystemInfoExtractor.Core.Reporting;
 
 namespace TfsSystemInfoExtractor.Web.Contracts
 {
@@ -14,13 +15,13 @@ namespace TfsSystemInfoExtractor.Web.Contracts
     /// <summary>Response to <c>GET /api/status</c>. Field names match what the browser JS expects.</summary>
     public sealed class StatusResponse
     {
-        public StatusResponse(bool done, int processed, string? error, IReadOnlyList<string> log, bool hasFiles)
+        public StatusResponse(bool done, int processed, string? error, IReadOnlyList<string> log, bool hasResult)
         {
             Done = done;
             Processed = processed;
             Error = error;
             Log = log ?? Array.Empty<string>();
-            HasFiles = hasFiles;
+            HasResult = hasResult;
         }
 
         public bool Done { get; }
@@ -31,6 +32,17 @@ namespace TfsSystemInfoExtractor.Web.Contracts
 
         public IReadOnlyList<string> Log { get; }
 
-        public bool HasFiles { get; }
+        public bool HasResult { get; }
+    }
+
+    /// <summary>
+    /// Body of <c>POST /api/export</c>. The browser sends the format token plus the
+    /// exact view it is currently showing. The server renders that and nothing else.
+    /// </summary>
+    public sealed class ExportRequest
+    {
+        public string Format { get; set; } = string.Empty;
+
+        public ReportView? View { get; set; }
     }
 }

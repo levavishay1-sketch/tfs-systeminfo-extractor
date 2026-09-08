@@ -31,7 +31,7 @@ namespace TfsSystemInfoExtractor.Web.Endpoints
                 processed: job.ProcessedCount,
                 error: job.Error,
                 log: job.LogSnapshot,
-                hasFiles: job.Status == JobStatus.Completed && job.HasArtifacts);
+                hasResult: job.Status == JobStatus.Completed && job.HasResult);
 
             return ResponseWriter.WriteJsonAsync(context.Response, response, 200, cancellationToken);
         }

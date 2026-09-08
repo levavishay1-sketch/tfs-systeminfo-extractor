@@ -330,9 +330,10 @@
         <span class='exportwrap'>
           <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
           <div class='menu' id='exportMenu' hidden>
-            <button type='button' data-fmt='csv'>CSV <small>(table format)</small><span class='tag'>default</span></button>
-            <button type='button' data-fmt='pdf'>PDF <small>(release report)</small></button>
-            <button type='button' data-fmt='json'>JSON</button>
+            <button type='button' data-fmt='csv'>CSV <small>(current view)</small><span class='tag'>default</span></button>
+            <button type='button' data-fmt='pdf'>PDF <small>(current view)</small></button>
+            <button type='button' data-fmt='pdf-info'>PDF System Info <small>(only items with System Info)</small></button>
+            <button type='button' data-fmt='json'>JSON <small>(raw data)</small></button>
             <button type='button' data-fmt='md'>Markdown</button>
           </div>
         </span>
@@ -402,7 +403,7 @@ async function poll() {
   $('#runBtn').textContent = 'Run';
   if (data.error) setStatus('error', data.error);
   else setStatus('done', 'Done - ' + data.processed + ' work items');
-  if (data.hasFiles) { $('#resultsCard').hidden = false; loadResults(); }
+  if (data.hasResult) { $('#resultsCard').hidden = false; loadResults(); }
 }
 function setStatus(kind, text) {
   const el = $('#status');
@@ -442,9 +443,10 @@ function setView(v) {
 }
 
 async function loadResults() {
-  const r = await fetch('/api/download?jobId=' + jobId + '&type=json');
+  const r = await fetch('/api/result?jobId=' + jobId);
   const data = await r.json();
   roots = data.Roots || [];
+  resultGeneratedAt = data.GeneratedAt || '';
   availableFields = data.AvailableFields || [];
   fieldLabels = {};
   availableFields.forEach(f => { fieldLabels[f.ReferenceName] = f.DisplayName; });
@@ -585,7 +587,7 @@ $('#expandAll').addEventListener('click', () => {
 });
 $('#collapseAll').addEventListener('click', () => {
   if (currentView === 'table') {
-    (function rec(nodes) { nodes.forEach(rn => { if (rn.children.length) { collapsed.add(rn.n.Id); rec(rn.children); } }); })(tableForest());
+    (function rec(nodes) { nodes.forEach(rn => { if (rn.children.length) { collapsed.add(rn.n.Id); rec(rn.children); } }); })(tableForest(filterWithInfo));
     render();
   }
   else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open'));
@@ -593,6 +595,7 @@ $('#collapseAll').addEventListener('click', () => {
 
 /* table - primary view: grouped tree-table, "with info" filter, optional extra columns */
 let filterWithInfo = false;
+let resultGeneratedAt = '';
 let availableFields = [];   // [{ ReferenceName, DisplayName }]
 let fieldLabels = {};       // referenceName -> displayName
 let extraFields = [];       // referenceNames, persisted
@@ -606,12 +609,12 @@ function toggleCollapse(id) {
 function fieldLabel(ref) { return fieldLabels[ref] || ref; }
 function tableColumnCount() { return 5 + extraFields.length; }
 
-// The forest to render: the full tree, or - when the "with info" filter is active -
-// a pruned forest containing ONLY Work Items that have System Info. Removed items
-// are dropped entirely; their System-Info descendants are re-parented to the nearest
-// surviving ancestor so the hierarchy among the remaining items is preserved.
-function tableForest() {
-  if (!filterWithInfo) {
+// The forest to render. With infoFilter, a pruned forest containing ONLY Work Items
+// that have System Info: removed items are dropped entirely and their System-Info
+// descendants are re-parented to the nearest surviving ancestor, so the hierarchy
+// among the remaining items is preserved.
+function tableForest(infoFilter) {
+  if (!infoFilter) {
     return roots.map(function wrap(n) { return { n: n, children: (n.Children || []).map(wrap) }; });
   }
   const out = [];
@@ -629,9 +632,9 @@ function tableForest() {
 }
 
 // Flatten the forest for the current collapse state, with per-row tree-render metadata.
-function visibleTableRows() {
+function visibleTableRows(infoFilter) {
   const out = [];
-  const forest = tableForest();
+  const forest = tableForest(infoFilter);
   forest.forEach((rn, i) => walk(rn, 0, [], i === forest.length - 1, null));
   function walk(rn, depth, ancLast, isLast, parentId) {
     const expanded = !collapsed.has(rn.n.Id);
@@ -644,8 +647,9 @@ function visibleTableRows() {
   return out;
 }
 
-function vTable(vp) {
-  const rows = visibleTableRows();
+function vTable(vp, infoFilter) {
+  if (infoFilter === undefined) infoFilter = filterWithInfo;
+  const rows = visibleTableRows(infoFilter);
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
   // keep System Info readable: force horizontal scroll rather than squeezing columns
@@ -666,7 +670,7 @@ function vTable(vp) {
   if (!rows.length) {
     const tb = el('tbody');
     const tr = el('tr');
-    const td = el('td', 'empty', filterWithInfo ? 'No Work Items have System Info.' : 'No Work Items to show.');
+    const td = el('td', 'empty', infoFilter ? 'No Work Items have System Info.' : 'No Work Items to show.');
     td.colSpan = tableColumnCount();
     tr.appendChild(td); tb.appendChild(tr); tbl.appendChild(tb);
     wrap.appendChild(tbl); vp.appendChild(wrap);
@@ -891,7 +895,9 @@ function vFocus(vp) {
   });
 }
 
-/* ---------- export menu ---------- */
+/* ---------- export ----------
+   Everything is built from the CURRENT table state at the moment of the click.
+   Nothing is generated or cached before the user picks an action. */
 const exportBtn = $('#exportBtn'), exportMenu = $('#exportMenu');
 function closeMenu() { exportMenu.hidden = true; }
 exportBtn.addEventListener('click', e => { e.stopPropagation(); exportMenu.hidden = !exportMenu.hidden; });
@@ -903,9 +909,88 @@ exportMenu.addEventListener('click', e => {
   closeMenu();
   doExport(b.dataset.fmt);
 });
-function doExport(fmt) {
+
+function currentColumns() {
+  const cols = [
+    { key: 'id', label: 'ID', kind: 'Id' },
+    { key: 'type', label: 'Type', kind: 'Type' },
+    { key: 'title', label: 'Title', kind: 'Text' },
+    { key: 'state', label: 'State', kind: 'Text' },
+    { key: 'systemInfo', label: 'System Info', kind: 'Multiline' }
+  ];
+  extraFields.forEach(ref => cols.push({ key: 'x:' + ref, label: fieldLabel(ref), kind: 'Text' }));
+  return cols;
+}
+function cellText(n, key) {
+  if (key === 'id') return '#' + n.Id;
+  if (key === 'type') return n.Type || '';
+  if (key === 'title') return n.Title || '(untitled)';
+  if (key === 'state') return n.State || '';
+  if (key === 'systemInfo') return n.Error ? n.Error : (hasInfo(n) ? n.SystemInfo : '');
+  if (key.indexOf('x:') === 0) return (n.Fields && n.Fields[key.slice(2)]) || '';
+  return '';
+}
+
+// The report view = exactly what the Table view is showing (optionally with the
+// System-Info-only filter forced on for the "PDF System Info" action).
+function buildReportView(infoOnly) {
+  const effectiveFilter = infoOnly || filterWithInfo;
+  const cols = currentColumns();
+  const rowMeta = visibleTableRows(effectiveFilter);
+  const rows = rowMeta.map(r => {
+    const cells = {};
+    cols.forEach(c => { cells[c.key] = cellText(r.n, c.key); });
+    return { depth: r.depth, groupStart: r.depth === 0, error: !!r.n.Error, cells: cells };
+  });
+
+  // The literal rendered table, for the HTML-based (PDF) renderer.
+  const holder = document.createElement('div');
+  holder.className = 'viewport view-table';
+  vTable(holder, effectiveFilter);
+
+  return {
+    title: 'TFS System Info',
+    subtitle: effectiveFilter ? 'Filtered to Work Items that have System Info' : null,
+    generatedAt: resultGeneratedAt ? resultGeneratedAt.replace('T', ' ') : '',
+    columns: cols,
+    rows: rows,
+    html: holder.innerHTML
+  };
+}
+
+async function exportViaBlob(format, view) {
+  const btn = exportBtn;
+  const prev = btn.textContent;
+  btn.textContent = 'Exporting...'; btn.disabled = true;
+  try {
+    const resp = await fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format: format, view: view })
+    });
+    if (!resp.ok) { alert('Export failed: ' + (await resp.text())); return; }
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const m = /filename="?([^"]+)"?/.exec(cd);
+    const name = m ? m[1] : ('TfsSystemInfo.' + (format === 'md' ? 'md' : format));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+  } catch (e) {
+    alert('Export failed to reach the local server.');
+  } finally {
+    btn.textContent = prev; btn.disabled = false;
+  }
+}
+
+function doExport(kind) {
   if (!jobId) return;
-  location.href = '/api/download?jobId=' + jobId + '&type=' + fmt;
+  if (kind === 'json') { location.href = '/api/result?jobId=' + jobId + '&download=1'; return; }
+  const infoOnly = kind === 'pdf-info';
+  const format = (kind === 'pdf' || kind === 'pdf-info') ? 'pdf' : kind; // 'csv' | 'md' | 'pdf'
+  exportViaBlob(format, buildReportView(infoOnly));
 }
 updateCount();
 </script>

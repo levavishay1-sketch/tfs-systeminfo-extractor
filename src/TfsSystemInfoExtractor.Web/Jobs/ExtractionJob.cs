@@ -14,8 +14,10 @@ namespace TfsSystemInfoExtractor.Web.Jobs
 
     /// <summary>
     /// Mutable state of one background extraction: a progress log, a processed count,
-    /// and — once finished — the result and the rendered artifacts (or an error).
-    /// All members are safe to read from the polling HTTP thread while the worker writes.
+    /// and - once finished - the <see cref="ExtractionResult"/> (or an error). No
+    /// exports are held here; they are rendered on demand when the user clicks an
+    /// export action. All members are safe to read from the polling HTTP thread while
+    /// the worker writes.
     /// </summary>
     public sealed class ExtractionJob
     {
@@ -24,8 +26,7 @@ namespace TfsSystemInfoExtractor.Web.Jobs
         private volatile JobStatus _status = JobStatus.Running;
         private int _processedCount;
         private volatile string? _error;
-        private volatile IReadOnlyDictionary<ExportFormat, ExportArtifact> _artifacts =
-            new Dictionary<ExportFormat, ExportArtifact>();
+        private volatile ExtractionResult? _result;
 
         public ExtractionJob(string id)
         {
@@ -42,9 +43,9 @@ namespace TfsSystemInfoExtractor.Web.Jobs
 
         public string? Error => _error;
 
-        public IReadOnlyDictionary<ExportFormat, ExportArtifact> Artifacts => _artifacts;
+        public ExtractionResult? Result => _result;
 
-        public bool HasArtifacts => _artifacts.Count > 0;
+        public bool HasResult => _result != null;
 
         public IReadOnlyList<string> LogSnapshot
         {
@@ -68,9 +69,9 @@ namespace TfsSystemInfoExtractor.Web.Jobs
 
         public void SetProcessedCount(int count) => Volatile.Write(ref _processedCount, count);
 
-        public void Complete(IReadOnlyDictionary<ExportFormat, ExportArtifact> artifacts)
+        public void Complete(ExtractionResult result)
         {
-            _artifacts = artifacts ?? new Dictionary<ExportFormat, ExportArtifact>();
+            _result = result ?? throw new ArgumentNullException(nameof(result));
             _status = JobStatus.Completed;
         }
 

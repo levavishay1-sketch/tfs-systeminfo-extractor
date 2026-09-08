@@ -38,6 +38,10 @@ namespace TfsSystemInfoExtractor.Web.Http
             return WriteAsync(response, 200, contentType, content, cancellationToken);
         }
 
+        /// <summary>Writes raw bytes with an explicit content type (for pre-serialized payloads).</summary>
+        public static Task WriteContentAsync(HttpListenerResponse response, string contentType, byte[] content, CancellationToken cancellationToken = default) =>
+            WriteAsync(response, 200, contentType, content, cancellationToken);
+
         public static Task WriteStatusAsync(HttpListenerResponse response, int statusCode)
         {
             response.StatusCode = statusCode;

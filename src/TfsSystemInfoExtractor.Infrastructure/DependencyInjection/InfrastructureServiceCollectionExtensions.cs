@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TfsSystemInfoExtractor.Core.Abstractions;
+using TfsSystemInfoExtractor.Core.Reporting;
 using TfsSystemInfoExtractor.Infrastructure.Configuration;
 using TfsSystemInfoExtractor.Infrastructure.Export;
 using TfsSystemInfoExtractor.Infrastructure.Storage;
@@ -15,7 +16,10 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
 {
     public static class InfrastructureServiceCollectionExtensions
     {
-        /// <summary>Wires the TFS adapters, the HTML-to-text converter and the file-system artifact store.</summary>
+        /// <summary>
+        /// Wires the TFS adapters, the HTML-to-text converter, the file-system artifact
+        /// store, and the browser-backed PDF engine.
+        /// </summary>
         public static IServiceCollection AddTfsInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddOptions<TfsOptions>()
@@ -49,10 +53,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
             services.AddSingleton<IHtmlToText, HtmlToPlainTextConverter>();
             services.AddSingleton<IExtractionArtifactStore, FileSystemArtifactStore>();
 
-            // Output adapter with a heavy third-party (PDF) dependency - kept out of Core,
-            // wired through the same IExportFormatter port as the built-in formatters.
-            services.AddSingleton<PdfReportDocumentBuilder>();
-            services.AddSingleton<IExportFormatter, PdfExportFormatter>();
+            services.AddSingleton<IBrowserPdfEngine, EdgeHtmlToPdfEngine>();
 
             return services;
         }

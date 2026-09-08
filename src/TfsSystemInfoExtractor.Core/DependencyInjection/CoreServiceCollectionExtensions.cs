@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Export;
 using TfsSystemInfoExtractor.Core.Extraction;
+using TfsSystemInfoExtractor.Core.Reporting;
 
 namespace TfsSystemInfoExtractor.Core.DependencyInjection
 {
@@ -11,9 +12,10 @@ namespace TfsSystemInfoExtractor.Core.DependencyInjection
     {
         /// <summary>
         /// Registers the domain/application services: the id parser, hierarchy walker,
-        /// extraction use-case, the clock and every export formatter. Infrastructure
-        /// (a real <see cref="IWorkItemSource"/>, <see cref="IHtmlToText"/>, etc.) is
-        /// contributed separately by the Infrastructure package.
+        /// extraction use-case, the clock, the JSON result serializer, and the pure
+        /// (CSV / Markdown) report renderers. Infrastructure (a real
+        /// <see cref="IWorkItemSource"/>, the browser PDF engine, ...) is contributed
+        /// separately by the Infrastructure and Web packages.
         /// </summary>
         public static IServiceCollection AddExtractorCore(this IServiceCollection services, IConfiguration configuration)
         {
@@ -21,15 +23,15 @@ namespace TfsSystemInfoExtractor.Core.DependencyInjection
                 .Bind(configuration.GetSection(ExtractionOptions.SectionName));
 
             services.TryAddSingleton<ISystemClock, SystemClock>();
-            // IFieldCatalog is contributed by the Infrastructure package.
             services.AddSingleton<WorkItemIdParser>();
             services.AddScoped<HierarchyWalker>();
             services.AddScoped<ExtractionService>();
 
-            services.AddSingleton<IExportFormatter, JsonExportFormatter>();
-            services.AddSingleton<IExportFormatter, MarkdownExportFormatter>();
-            services.AddSingleton<IExportFormatter, CsvExportFormatter>();
-            services.AddSingleton<ExportFormatterSelector>();
+            services.AddSingleton<JsonExportFormatter>();
+
+            services.AddSingleton<IReportRenderer, CsvReportRenderer>();
+            services.AddSingleton<IReportRenderer, MarkdownReportRenderer>();
+            services.AddSingleton<ReportRendererSelector>();
 
             return services;
         }

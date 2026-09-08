@@ -1,17 +1,18 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Encodings.Web;
-using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Model;
 
 namespace TfsSystemInfoExtractor.Core.Export
 {
     /// <summary>
-    /// Renders the result as indented JSON. Property names stay PascalCase and the
-    /// document shape (<c>GeneratedAt</c> / <c>Roots</c> / node <c>Id,Type,Title,State,Url,SystemInfo,Error,Children</c>)
-    /// is the contract the browser UI consumes, so it must not drift.
+    /// Serializes an <see cref="ExtractionResult"/> to the JSON the browser consumes as
+    /// its data feed (and offers as a raw "Download JSON"). Property names stay
+    /// PascalCase and the shape (<c>GeneratedAt</c> / <c>Roots</c> / <c>AvailableFields</c>
+    /// and node <c>Id,Type,Title,State,Url,SystemInfo,Error,Fields,SourceControl,Children</c>)
+    /// is a contract the UI relies on, so it must not drift.
     /// </summary>
-    public sealed class JsonExportFormatter : IExportFormatter
+    public sealed class JsonExportFormatter
     {
         private static readonly JsonSerializerOptions Options = new JsonSerializerOptions
         {
@@ -19,8 +20,6 @@ namespace TfsSystemInfoExtractor.Core.Export
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
-
-        public ExportFormat Format => ExportFormat.Json;
 
         public ExportArtifact Render(ExtractionResult result)
         {
