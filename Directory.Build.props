@@ -12,7 +12,8 @@
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <!-- GenerateBindingRedirectsOutputType is set only on the executable (App); emitting
+         a *.dll.config next to every class library just litters the output folder. -->
   </PropertyGroup>
 
 </Project>

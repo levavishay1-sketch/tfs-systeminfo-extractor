@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,8 +27,18 @@ namespace TfsSystemInfoExtractor.App
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(AppContext.BaseDirectory)
+            var builder = new ConfigurationBuilder().SetBasePath(AppContext.BaseDirectory);
+
+            // Baked-in defaults, so a lone EXE with no files beside it still has a
+            // usable configuration. Anything below overrides these. The stream is read
+            // lazily by Build(), so it must outlive this method - hence the copy.
+            var defaults = ReadEmbeddedDefaults();
+            if (defaults != null)
+            {
+                builder.AddJsonStream(defaults);
+            }
+
+            var configuration = builder
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
                 .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.local.json"), optional: true, reloadOnChange: false)
                 .AddEnvironmentVariables("TFS_")
@@ -85,6 +96,21 @@ namespace TfsSystemInfoExtractor.App
             }
 
             return 0;
+        }
+
+        private static MemoryStream? ReadEmbeddedDefaults()
+        {
+            using var resource = Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("TfsSystemInfoExtractor.App.appsettings.json");
+            if (resource == null)
+            {
+                return null;
+            }
+
+            var copy = new MemoryStream();
+            resource.CopyTo(copy);
+            copy.Position = 0;
+            return copy;
         }
     }
 }

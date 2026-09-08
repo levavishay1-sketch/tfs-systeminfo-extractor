@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Costura embeds every referenced managed assembly (the Microsoft.Extensions.* set,
+  System.Text.Json, DocumentFormat.OpenXml, and the Core/Infrastructure/Web project
+  DLLs) as compressed resources inside TfsSystemInfoExtractor.exe and resolves them
+  from memory at startup. The build output is then a single, self-contained EXE.
+-->
+<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+  <Costura IncludeDebugSymbols="false" />
+</Weavers>

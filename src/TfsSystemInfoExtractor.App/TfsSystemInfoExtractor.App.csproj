@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>TfsSystemInfoExtractor</AssemblyName>
     <RootNamespace>TfsSystemInfoExtractor.App</RootNamespace>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,7 +23,19 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
 
+  <!-- Package the whole app as one self-contained EXE (see FodyWeavers.xml). -->
   <ItemGroup>
+    <PackageReference Include="Fody" PrivateAssets="all" />
+    <PackageReference Include="Costura.Fody" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    The default configuration is embedded in the EXE so a bare "copy the EXE and run"
+    deployment works. An appsettings.json / appsettings.local.json placed next to the
+    EXE, or TFS_-prefixed environment variables, still override it at runtime.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="appsettings.json" LogicalName="TfsSystemInfoExtractor.App.appsettings.json" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

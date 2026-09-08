@@ -49,7 +49,7 @@ only wiring: build config → `AddExtractorCore` / `AddTfsInfrastructure` /
 
 ## 1. Configure
 
-Edit `src/TfsSystemInfoExtractor.App/appsettings.json` (no rebuild needed):
+Defaults live in `src/TfsSystemInfoExtractor.App/appsettings.json`:
 
 | Setting | Meaning | Default |
 |---|---|---|
@@ -64,10 +64,14 @@ Edit `src/TfsSystemInfoExtractor.App/appsettings.json` (no rebuild needed):
 | `Web:OpenBrowserOnStart` | open the browser on launch | `true` |
 | `Extraction:MaxDepth` | hierarchy depth safety cap | `50` |
 
-Any value can be overridden with an environment variable using the `TFS_`
-prefix and `__` as the separator, e.g.
-`set TFS_Tfs__CollectionUrl=http://other:8080/tfs/Coll`.
-A git-ignored `appsettings.local.json` next to the exe is also honoured.
+`appsettings.json` is **also compiled into the exe** as the default, so a
+lone exe with nothing beside it still starts with the values above. Any of
+them can be overridden, in increasing priority:
+
+1. an `appsettings.json` placed next to the exe,
+2. a git-ignored `appsettings.local.json` next to the exe,
+3. an environment variable with the `TFS_` prefix and `__` as the separator,
+   e.g. `set TFS_Tfs__CollectionUrl=http://other:8080/tfs/Coll`.
 
 ## 2. Build
 
@@ -81,11 +85,25 @@ dotnet test  TfsSystemInfoExtractor.sln -c Release
 
 Visual Studio: open `TfsSystemInfoExtractor.sln`, Build, F5 the `App` project.
 
-## 3. Run
+## 3. Run / deploy
 
 ```
 src\TfsSystemInfoExtractor.App\bin\Release\net472\TfsSystemInfoExtractor.exe
 ```
+
+`TfsSystemInfoExtractor.exe` is a **self-contained single file**. Every managed
+dependency - `Microsoft.Extensions.*`, `System.Text.Json`,
+`DocumentFormat.OpenXml` and the Core / Infrastructure / Web assemblies - is
+embedded inside it by [Costura.Fody](https://github.com/Fody/Costura) (a
+build-time weaver; see `src/TfsSystemInfoExtractor.App/FodyWeavers.xml`) and
+loaded from memory at startup. .NET Framework has no built-in single-file
+publish, so this is how the "one file" experience is achieved.
+
+To deploy: build, then copy **only** `TfsSystemInfoExtractor.exe` to any
+Windows machine that has **.NET Framework 4.7.2** (present on Windows 10 1803+
+and Server 2019+) and run it. Nothing else - no folder of DLLs, no
+`appsettings.json`, no installer. Drop an `appsettings.json` / env var beside
+it only to point at a different collection.
 
 The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
 space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
