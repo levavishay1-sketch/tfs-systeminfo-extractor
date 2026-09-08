@@ -198,12 +198,36 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
             Assert.Equal(new[] { "ComponentA", "ComponentB" }, commit.Components);
             Assert.Equal(new[]
             {
-                "/Solution/Components/ComponentA/src/PayService.cs",
-                "/Solution/Components/ComponentB/Report.cs",
-                "/Solution/Components/ComponentA/Model.cs"
+                "Solution/Components/ComponentA/src/PayService.cs",
+                "Solution/Components/ComponentB/Report.cs",
+                "Solution/Components/ComponentA/Model.cs"
             }, commit.ChangedPaths);
 
             Assert.Equal(new[] { "ComponentA", "ComponentB" }, sc.Components.Select(c => c.Name).ToArray());
+        }
+
+        [Fact]
+        public async Task Only_the_actual_changed_files_are_listed_not_their_parent_folders()
+        {
+            var handler = new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", FieldsJson)
+                .Map("_apis/wit/workitems/60", CommitLinkWorkItem)
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b/changes",
+                    @"{ ""changes"": [
+                        { ""item"": { ""path"": ""/X"", ""gitObjectType"": ""tree"" } },
+                        { ""item"": { ""path"": ""/X/Y"", ""gitObjectType"": ""tree"" } },
+                        { ""item"": { ""path"": ""/X/Y/Z"", ""gitObjectType"": ""tree"" } },
+                        { ""item"": { ""path"": ""/X/Y/Z/sdfsd.js"", ""gitObjectType"": ""blob"" } } ] }")
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+                    @"{ ""commitId"": ""1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"", ""comment"": ""add file"",
+                        ""author"": { ""name"": ""x"", ""date"": ""2026-01-01T00:00:00Z"" } }")
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222", @"{ ""name"": ""Web"" }");
+            var (source, _) = Build(handler);
+
+            var commit = Assert.Single((await source.GetAsync(60, CancellationToken.None)).SourceControl!.Commits);
+
+            Assert.Equal(new[] { "X/Y/Z/sdfsd.js" }, commit.ChangedPaths);   // just the file, no X, X/Y, X/Y/Z
+            Assert.Equal(new[] { "Z" }, commit.Components);                  // its own folder
         }
 
         [Fact]

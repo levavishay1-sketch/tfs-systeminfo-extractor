@@ -226,8 +226,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
 
         private async Task<ChangedItems> ReadGitCommitChangesAsync(string repoId, string sha, CancellationToken cancellationToken)
         {
-            var components = new List<string>();
-            var paths = new List<string>();
+            var raw = new List<(string Path, bool IsFolder)>();
             try
             {
                 using var doc = await _client
@@ -244,17 +243,10 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                         }
 
                         var path = GetString(item, "path");
-                        if (string.IsNullOrWhiteSpace(path))
+                        if (!string.IsNullOrWhiteSpace(path))
                         {
-                            continue;
-                        }
-
-                        paths.Add(path!);
-                        var isFolder = string.Equals(GetString(item, "gitObjectType"), "tree", StringComparison.OrdinalIgnoreCase);
-                        var component = ComponentFromPath(NormalizeSegments(path, tfvc: false), isFolder);
-                        if (component != null)
-                        {
-                            components.Add(component);
+                            raw.Add((path!.Replace('\\', '/'),
+                                string.Equals(GetString(item, "gitObjectType"), "tree", StringComparison.OrdinalIgnoreCase)));
                         }
                     }
                 }
@@ -264,7 +256,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                 _logger.LogWarning(ex, "Could not read changed items for Git commit {Sha} in repo {RepoId}.", sha, repoId);
             }
 
-            return new ChangedItems(Dedupe(components), CapPaths(paths), null);
+            return BuildChangedItems(LeafChanges(raw), tfvc: false, project: null);
         }
 
         // ---- TFVC ----------------------------------------------------------------
@@ -289,8 +281,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
 
         private async Task<ChangedItems> ReadChangesetChangesAsync(int changesetId, CancellationToken cancellationToken)
         {
-            var components = new List<string>();
-            var paths = new List<string>();
+            var raw = new List<(string Path, bool IsFolder)>();
             string? project = null;
             try
             {
@@ -308,18 +299,11 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                         }
 
                         var path = GetString(item, "path");
-                        if (string.IsNullOrWhiteSpace(path))
+                        if (!string.IsNullOrWhiteSpace(path))
                         {
-                            continue;
-                        }
-
-                        paths.Add(path!);
-                        project = project ?? TfvcProject(path);
-                        var isFolder = item.TryGetProperty("isFolder", out var f) && f.ValueKind == JsonValueKind.True;
-                        var component = ComponentFromPath(NormalizeSegments(path, tfvc: true), isFolder);
-                        if (component != null)
-                        {
-                            components.Add(component);
+                            project = project ?? TfvcProject(path);
+                            raw.Add((path!.Replace('\\', '/'),
+                                item.TryGetProperty("isFolder", out var f) && f.ValueKind == JsonValueKind.True));
                         }
                     }
                 }
@@ -329,7 +313,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                 _logger.LogWarning(ex, "Could not read changed items for TFVC changeset {ChangesetId}.", changesetId);
             }
 
-            return new ChangedItems(Dedupe(components), CapPaths(paths), project);
+            return BuildChangedItems(LeafChanges(raw), tfvc: true, project: project);
         }
 
         private readonly struct ChangedItems
@@ -348,11 +332,46 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             public string? Project { get; }
         }
 
-        private IReadOnlyList<string> CapPaths(IEnumerable<string> paths) =>
-            paths.Where(p => !string.IsNullOrWhiteSpace(p))
-                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                 .Take(Math.Max(0, _options.MaxChangedPathsPerCommit))
-                 .ToArray();
+        /// <summary>
+        /// Keep only the actual changed items: a path that is an ancestor directory of
+        /// another changed path (the folder-add entries Git/TFVC also report) is dropped,
+        /// so <c>X/Y/Z/file.js</c> stays but <c>X</c>, <c>X/Y</c>, <c>X/Y/Z</c> do not.
+        /// </summary>
+        private static List<(string Path, bool IsFolder)> LeafChanges(IReadOnlyList<(string Path, bool IsFolder)> raw)
+        {
+            var all = raw.Select(x => x.Path.TrimEnd('/')).ToList();
+            return raw
+                .Where(x =>
+                {
+                    var prefix = x.Path.TrimEnd('/') + "/";
+                    return !all.Any(other => other.Length > prefix.Length &&
+                                             other.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                })
+                .ToList();
+        }
+
+        private ChangedItems BuildChangedItems(List<(string Path, bool IsFolder)> leaves, bool tfvc, string? project)
+        {
+            var components = new List<string>();
+            var paths = new List<string>();
+
+            foreach (var (path, isFolder) in leaves)
+            {
+                paths.Add(tfvc ? path : path.TrimStart('/'));   // display the full file path, git without the leading '/'
+                var component = ComponentFromPath(NormalizeSegments(path, tfvc), isFolder);
+                if (component != null)
+                {
+                    components.Add(component);
+                }
+            }
+
+            var capped = paths.Where(p => !string.IsNullOrWhiteSpace(p))
+                              .Distinct(StringComparer.OrdinalIgnoreCase)
+                              .Take(Math.Max(0, _options.MaxChangedPathsPerCommit))
+                              .ToArray();
+
+            return new ChangedItems(Dedupe(components), capped, project);
+        }
 
         // ---- parsing helpers ---------------------------------------------------
 
