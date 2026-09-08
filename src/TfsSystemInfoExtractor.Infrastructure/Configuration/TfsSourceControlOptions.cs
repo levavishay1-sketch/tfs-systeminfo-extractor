@@ -15,15 +15,23 @@ namespace TfsSystemInfoExtractor.Infrastructure.Configuration
         public int MaxCommitsPerWorkItem { get; set; } = 50;
 
         /// <summary>
-        /// Also fetch each commit's changed paths to derive the components it touched.
-        /// Costs one extra call per commit; turn off if extraction is too slow.
+        /// Also fetch each commit's changed items (the real source-control data) to
+        /// determine the specific components it changed. Costs one extra call per commit;
+        /// turn off if extraction is too slow.
         /// </summary>
         public bool IncludeComponents { get; set; } = true;
 
         /// <summary>
-        /// Which path segment (1-based, relative to the repository / TFVC project root)
-        /// names a component. 1 = the top-level folder.
+        /// Container-folder names whose <em>immediate child</em> is a component, e.g. a
+        /// change under <c>.../Components/ComponentA/...</c> is attributed to
+        /// <c>ComponentA</c>. Matched case-insensitively anywhere in the changed item's
+        /// path. When no container matches, the component is the folder the change was
+        /// actually made in (the changed item's own directory) - never a truncated
+        /// ancestor path.
         /// </summary>
-        public int ComponentPathDepth { get; set; } = 1;
+        public string[] ComponentContainerFolders { get; set; } = { "Components" };
+
+        /// <summary>Cap on how many changed item paths are kept per commit for display.</summary>
+        public int MaxChangedPathsPerCommit { get; set; } = 25;
     }
 }

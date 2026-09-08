@@ -116,13 +116,13 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                     }
 
                     var changed = _options.IncludeComponents
-                        ? await ReadGitCommitComponentsAsync(repoId, sha, cancellationToken).ConfigureAwait(false)
-                        : Array.Empty<string>();
+                        ? await ReadGitCommitChangesAsync(repoId, sha, cancellationToken).ConfigureAwait(false)
+                        : default;
 
                     commits.Add(new Commit(commit.Value.Sha, commit.Value.Message, commit.Value.Author,
-                        commit.Value.Date, repoId, commit.Value.Url, changed));
+                        commit.Value.Date, repoId, commit.Value.Url, changed.Components, changed.Paths));
                     Add(contributors, commit.Value.Author);
-                    foreach (var name in changed)
+                    foreach (var name in changed.Components ?? Array.Empty<string>())
                     {
                         components[name] = new SourceComponent(name, repoId);
                     }
@@ -144,17 +144,17 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                         continue;
                     }
 
-                    var (changed, project) = _options.IncludeComponents
-                        ? await ReadChangesetComponentsAsync(changesetId, cancellationToken).ConfigureAwait(false)
-                        : (Array.Empty<string>(), null);
+                    var changed = _options.IncludeComponents
+                        ? await ReadChangesetChangesAsync(changesetId, cancellationToken).ConfigureAwait(false)
+                        : default;
 
-                    var repoId = "tfvc:" + (project ?? "root");
-                    repositories[repoId] = new SourceRepository(repoId, project ?? "TFVC", null, "TfsVersionControl");
+                    var repoId = "tfvc:" + (changed.Project ?? "root");
+                    repositories[repoId] = new SourceRepository(repoId, changed.Project ?? "TFVC", null, "TfsVersionControl");
 
                     commits.Add(new Commit("C" + changesetId.ToString(CultureInfo.InvariantCulture), cs.Value.Message,
-                        cs.Value.Author, cs.Value.Date, repoId, cs.Value.Url, changed));
+                        cs.Value.Author, cs.Value.Date, repoId, cs.Value.Url, changed.Components, changed.Paths));
                     Add(contributors, cs.Value.Author);
-                    foreach (var name in changed)
+                    foreach (var name in changed.Components ?? Array.Empty<string>())
                     {
                         components[name] = new SourceComponent(name, repoId);
                     }
@@ -224,9 +224,10 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             return (id, message, author, date, url);
         }
 
-        private async Task<IReadOnlyList<string>> ReadGitCommitComponentsAsync(string repoId, string sha, CancellationToken cancellationToken)
+        private async Task<ChangedItems> ReadGitCommitChangesAsync(string repoId, string sha, CancellationToken cancellationToken)
         {
-            var found = new List<string>();
+            var components = new List<string>();
+            var paths = new List<string>();
             try
             {
                 using var doc = await _client
@@ -242,21 +243,28 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                             continue;
                         }
 
+                        var path = GetString(item, "path");
+                        if (string.IsNullOrWhiteSpace(path))
+                        {
+                            continue;
+                        }
+
+                        paths.Add(path!);
                         var isFolder = string.Equals(GetString(item, "gitObjectType"), "tree", StringComparison.OrdinalIgnoreCase);
-                        var component = ComponentFromPath(GetString(item, "path"), tfvc: false, isFolder: isFolder);
+                        var component = ComponentFromPath(NormalizeSegments(path, tfvc: false), isFolder);
                         if (component != null)
                         {
-                            found.Add(component);
+                            components.Add(component);
                         }
                     }
                 }
             }
             catch (Exception ex) when (!(ex is OperationCanceledException))
             {
-                _logger.LogWarning(ex, "Could not read changed files for Git commit {Sha} in repo {RepoId}.", sha, repoId);
+                _logger.LogWarning(ex, "Could not read changed items for Git commit {Sha} in repo {RepoId}.", sha, repoId);
             }
 
-            return Dedupe(found);
+            return new ChangedItems(Dedupe(components), CapPaths(paths), null);
         }
 
         // ---- TFVC ----------------------------------------------------------------
@@ -279,10 +287,10 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             return (message, author, date, url);
         }
 
-        private async Task<(IReadOnlyList<string> Components, string? Project)> ReadChangesetComponentsAsync(
-            int changesetId, CancellationToken cancellationToken)
+        private async Task<ChangedItems> ReadChangesetChangesAsync(int changesetId, CancellationToken cancellationToken)
         {
-            var found = new List<string>();
+            var components = new List<string>();
+            var paths = new List<string>();
             string? project = null;
             try
             {
@@ -300,23 +308,51 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                         }
 
                         var path = GetString(item, "path");
-                        project ??= TfvcProject(path);
-                        var isFolder = change.TryGetProperty("item", out var it) && it.TryGetProperty("isFolder", out var f) && f.ValueKind == JsonValueKind.True;
-                        var component = ComponentFromPath(path, tfvc: true, isFolder: isFolder);
+                        if (string.IsNullOrWhiteSpace(path))
+                        {
+                            continue;
+                        }
+
+                        paths.Add(path!);
+                        project = project ?? TfvcProject(path);
+                        var isFolder = item.TryGetProperty("isFolder", out var f) && f.ValueKind == JsonValueKind.True;
+                        var component = ComponentFromPath(NormalizeSegments(path, tfvc: true), isFolder);
                         if (component != null)
                         {
-                            found.Add(component);
+                            components.Add(component);
                         }
                     }
                 }
             }
             catch (Exception ex) when (!(ex is OperationCanceledException))
             {
-                _logger.LogWarning(ex, "Could not read changed files for TFVC changeset {ChangesetId}.", changesetId);
+                _logger.LogWarning(ex, "Could not read changed items for TFVC changeset {ChangesetId}.", changesetId);
             }
 
-            return (Dedupe(found), project);
+            return new ChangedItems(Dedupe(components), CapPaths(paths), project);
         }
+
+        private readonly struct ChangedItems
+        {
+            public ChangedItems(IReadOnlyList<string> components, IReadOnlyList<string> paths, string? project)
+            {
+                Components = components;
+                Paths = paths;
+                Project = project;
+            }
+
+            public IReadOnlyList<string> Components { get; }
+
+            public IReadOnlyList<string> Paths { get; }
+
+            public string? Project { get; }
+        }
+
+        private IReadOnlyList<string> CapPaths(IEnumerable<string> paths) =>
+            paths.Where(p => !string.IsNullOrWhiteSpace(p))
+                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                 .Take(Math.Max(0, _options.MaxChangedPathsPerCommit))
+                 .ToArray();
 
         // ---- parsing helpers ---------------------------------------------------
 
@@ -341,33 +377,67 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             return sha.Length > 0 && repoId.Length > 0;
         }
 
-        private string? ComponentFromPath(string? path, bool tfvc, bool isFolder)
+        /// <summary>
+        /// The specific component a changed item belongs to. First choice: the segment
+        /// directly beneath a configured container folder (e.g.
+        /// <c>Folder/Components/ComponentA/File.cs</c> -&gt; <c>ComponentA</c>). Otherwise
+        /// the folder the change was actually made in (the item's own directory, or the
+        /// folder itself when a whole directory changed) - never a truncated ancestor.
+        /// </summary>
+        private string? ComponentFromPath(string[] segments, bool isFolder)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (segments.Length == 0)
             {
                 return null;
             }
 
-            var normalized = path!.Replace('\\', '/').Trim('/');
-            if (tfvc && normalized.StartsWith("$/", StringComparison.Ordinal))
+            var markers = _options.ComponentContainerFolders;
+            if (markers != null)
             {
-                normalized = normalized.Substring(2);
+                for (var i = segments.Length - 1; i >= 0; i--)
+                {
+                    if (i + 1 >= segments.Length)
+                    {
+                        continue;
+                    }
+
+                    if (!markers.Any(m => string.Equals(m, segments[i], StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    // the candidate must be a directory: something below it, or the change is that directory
+                    if (i + 1 < segments.Length - 1 || isFolder)
+                    {
+                        return segments[i + 1];
+                    }
+                }
             }
 
-            var segments = normalized.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-            var index = (tfvc ? 1 : 0) + Math.Max(1, _options.ComponentPathDepth) - 1;
-
-            if (segments.Length > index + 1)
+            if (isFolder)
             {
-                return segments[index];               // there's a file/folder below -> this segment is a folder
+                return segments[segments.Length - 1];         // a whole directory was added / deleted / renamed
             }
 
-            if (isFolder && segments.Length == index + 1)
+            return segments.Length >= 2 ? segments[segments.Length - 2] : null;   // the file's own folder
+        }
+
+        /// <summary>Repo-relative path segments: leading '/' stripped for Git; '$/' and the project stripped for TFVC.</summary>
+        private static string[] NormalizeSegments(string? path, bool tfvc)
+        {
+            if (string.IsNullOrWhiteSpace(path))
             {
-                return segments[index];               // the change is that folder itself
+                return Array.Empty<string>();
             }
 
-            return null;
+            var s = path!.Replace('\\', '/').Trim('/');
+            if (tfvc && s.StartsWith("$/", StringComparison.Ordinal))
+            {
+                s = s.Substring(2);
+            }
+
+            var segments = s.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            return tfvc && segments.Length > 0 ? segments.Skip(1).ToArray() : segments;
         }
 
         private static string? TfvcProject(string? path)

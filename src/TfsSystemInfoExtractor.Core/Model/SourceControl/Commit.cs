@@ -18,7 +18,8 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
             DateTimeOffset? committedOn = null,
             string? repositoryId = null,
             string? url = null,
-            IEnumerable<string>? components = null)
+            IEnumerable<string>? components = null,
+            IEnumerable<string>? changedPaths = null)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -33,6 +34,10 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
             Url = url;
             Components = components?
                 .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray() ?? Array.Empty<string>();
+            ChangedPaths = changedPaths?
+                .Where(p => !string.IsNullOrWhiteSpace(p))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray() ?? Array.Empty<string>();
         }
@@ -51,8 +56,11 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
 
         public string? Url { get; }
 
-        /// <summary>Names of the components (top-level repository areas) this commit changed.</summary>
+        /// <summary>The specific components (repository areas / items) this commit changed.</summary>
         public IReadOnlyList<string> Components { get; }
+
+        /// <summary>The changed item paths reported by version control for this commit (capped for display).</summary>
+        public IReadOnlyList<string> ChangedPaths { get; }
 
         [JsonIgnore]
         public string ShortId => Id.Length <= 8 ? Id : Id.Substring(0, 8);

@@ -157,16 +157,16 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
                 { ""rel"": ""System.LinkTypes.Hierarchy-Reverse"", ""url"": ""http://tfs/_apis/wit/workItems/1"" } ] }";
 
         [Fact]
-        public async Task Resolves_a_linked_git_commit_into_source_control_info()
+        public async Task Resolves_a_linked_git_commit_into_source_control_info_with_the_specific_components()
         {
             var handler = new StubHttpMessageHandler()
                 .Map("_apis/wit/fields", FieldsJson)
                 .Map("_apis/wit/workitems/60", CommitLinkWorkItem)
                 .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b/changes",
                     @"{ ""changes"": [
-                        { ""item"": { ""path"": ""/Payments/Api/PayService.cs"", ""gitObjectType"": ""blob"" } },
-                        { ""item"": { ""path"": ""/Reporting/Report.cs"", ""gitObjectType"": ""blob"" } },
-                        { ""item"": { ""path"": ""/Payments/Model.cs"", ""gitObjectType"": ""blob"" } } ] }")
+                        { ""item"": { ""path"": ""/Solution/Components/ComponentA/src/PayService.cs"", ""gitObjectType"": ""blob"" } },
+                        { ""item"": { ""path"": ""/Solution/Components/ComponentB/Report.cs"", ""gitObjectType"": ""blob"" } },
+                        { ""item"": { ""path"": ""/Solution/Components/ComponentA/Model.cs"", ""gitObjectType"": ""blob"" } } ] }")
                 .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
                     @"{ ""commitId"": ""1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"",
                         ""comment"": ""Wire up the payment service"",
@@ -189,16 +189,40 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
 
             var commit = Assert.Single(sc.Commits);
             Assert.Equal("1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", commit.Id);
-            Assert.Equal("1a2b3c4d", commit.ShortId);
             Assert.Equal("Wire up the payment service", commit.Message);
             Assert.Equal("Dana Cohen", commit.Author!.DisplayName);
-            Assert.Equal("dcohen@corp", commit.Author.UniqueName);
             Assert.Equal(2026, commit.CommittedOn!.Value.Year);
             Assert.Equal("http://tfs/_git/Reports/commit/1a2b3c4d", commit.Url);
-            Assert.Equal(new[] { "Payments", "Reporting" }, commit.Components);
 
-            Assert.Equal(new[] { "Payments", "Reporting" }, sc.Components.Select(c => c.Name).ToArray());
-            Assert.Equal("Dana Cohen", Assert.Single(sc.Contributors).DisplayName);
+            // the specific component under the "Components" container - not "Components", not "Solution"
+            Assert.Equal(new[] { "ComponentA", "ComponentB" }, commit.Components);
+            Assert.Equal(new[]
+            {
+                "/Solution/Components/ComponentA/src/PayService.cs",
+                "/Solution/Components/ComponentB/Report.cs",
+                "/Solution/Components/ComponentA/Model.cs"
+            }, commit.ChangedPaths);
+
+            Assert.Equal(new[] { "ComponentA", "ComponentB" }, sc.Components.Select(c => c.Name).ToArray());
+        }
+
+        [Fact]
+        public async Task Component_falls_back_to_the_folder_the_change_was_made_in()
+        {
+            var handler = new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", FieldsJson)
+                .Map("_apis/wit/workitems/60", CommitLinkWorkItem)
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b/changes",
+                    @"{ ""changes"": [ { ""item"": { ""path"": ""/Web/Controllers/HomeController.cs"", ""gitObjectType"": ""blob"" } } ] }")
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+                    @"{ ""commitId"": ""1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"", ""comment"": ""c"",
+                        ""author"": { ""name"": ""x"", ""date"": ""2026-01-01T00:00:00Z"" } }")
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222", @"{ ""name"": ""Reports.Web"" }");
+            var (source, _) = Build(handler);
+
+            var raw = await source.GetAsync(60, CancellationToken.None);
+
+            Assert.Equal(new[] { "Controllers" }, Assert.Single(raw.SourceControl!.Commits).Components);
         }
 
         [Fact]

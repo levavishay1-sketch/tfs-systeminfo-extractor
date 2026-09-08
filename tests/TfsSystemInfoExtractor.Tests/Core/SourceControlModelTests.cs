@@ -34,7 +34,8 @@ namespace TfsSystemInfoExtractor.Tests.Core
                 commits: new[]
                 {
                     new Commit("abcdef1234567890", "Fix login", jane, DateTimeOffset.UtcNow, "r1", "http://tfs/commit/abc",
-                        components: new[] { "Auth", "Auth", "Web" }),
+                        components: new[] { "Auth", "Auth", "Web" },
+                        changedPaths: new[] { "/Components/Auth/Login.cs", "/Components/Web/Nav.cs" }),
                     new Commit("00998877", "Bump version", jane, null, "r2")
                 },
                 contributors: new[] { jane },
@@ -48,7 +49,9 @@ namespace TfsSystemInfoExtractor.Tests.Core
             Assert.Equal("abcdef12", info.Commits[0].ShortId);
             Assert.Equal("00998877", info.Commits[1].ShortId);
             Assert.Equal(new[] { "Auth", "Web" }, info.Commits[0].Components);   // de-duplicated
+            Assert.Equal(new[] { "/Components/Auth/Login.cs", "/Components/Web/Nav.cs" }, info.Commits[0].ChangedPaths);
             Assert.Empty(info.Commits[1].Components);
+            Assert.Empty(info.Commits[1].ChangedPaths);
             Assert.Equal("Jane Doe", info.Contributors[0].DisplayName);
         }
 
@@ -85,7 +88,7 @@ namespace TfsSystemInfoExtractor.Tests.Core
             var withScNode = ResultBuilder.Node(1, systemInfo: "x");
             withScNode.SourceControl = new SourceControlInfo(
                 repositories: new[] { new SourceRepository("r1", "Reports.Web", null, "TfsGit") },
-                commits: new[] { new Commit("deadbeef", "msg", new Developer("dev"), null, "r1", null, new[] { "Auth" }) },
+                commits: new[] { new Commit("deadbeef", "msg", new Developer("dev"), null, "r1", null, new[] { "Auth" }, new[] { "/Components/Auth/x.cs" }) },
                 contributors: new[] { new Developer("dev") },
                 components: new[] { new SourceComponent("Auth", "r1") });
             var plainNode = ResultBuilder.Node(2);
@@ -97,6 +100,7 @@ namespace TfsSystemInfoExtractor.Tests.Core
             Assert.True(roots[0].TryGetProperty("SourceControl", out var sc));
             Assert.Equal("deadbeef", sc.GetProperty("Commits")[0].GetProperty("Id").GetString());
             Assert.Equal("Auth", sc.GetProperty("Commits")[0].GetProperty("Components")[0].GetString());
+            Assert.Equal("/Components/Auth/x.cs", sc.GetProperty("Commits")[0].GetProperty("ChangedPaths")[0].GetString());
             Assert.Equal("Reports.Web", sc.GetProperty("Repositories")[0].GetProperty("Name").GetString());
             Assert.Equal("Auth", sc.GetProperty("Components")[0].GetProperty("Name").GetString());
             Assert.Equal("dev", sc.GetProperty("Contributors")[0].GetProperty("Name").GetString());

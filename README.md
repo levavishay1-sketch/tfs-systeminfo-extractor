@@ -59,8 +59,9 @@ Defaults live in `src/TfsSystemInfoExtractor.App/appsettings.json`:
 | `Tfs:RequestTimeoutSeconds` | per-request timeout | `60` |
 | `Tfs:SourceControl:Enabled` | resolve linked commits / changesets | `true` |
 | `Tfs:SourceControl:MaxCommitsPerWorkItem` | cap on links resolved per work item | `50` |
-| `Tfs:SourceControl:IncludeComponents` | also read each commit's changed paths for components (one extra call per commit) | `true` |
-| `Tfs:SourceControl:ComponentPathDepth` | which path segment (from the repo / TFVC project root) names a component | `1` |
+| `Tfs:SourceControl:IncludeComponents` | also read each commit's changed items to determine the specific components (one extra call per commit) | `true` |
+| `Tfs:SourceControl:ComponentContainerFolders` | folder names whose immediate child is a component (`.../Components/ComponentA/...` → `ComponentA`) | `["Components"]` |
+| `Tfs:SourceControl:MaxChangedPathsPerCommit` | changed item paths kept per commit for display | `25` |
 | `Export:OutputDirectory` | folder a copy of each export is saved to on click | `C:\TfsSystemInfoExport` |
 | `Export:BrowserPath` | explicit path to msedge.exe / chrome.exe for PDF (empty = auto-detect) | `` |
 | `Export:PdfTimeoutSeconds` | hard timeout for one PDF render | `40` |
@@ -127,18 +128,23 @@ The default columns are unchanged; the hierarchy is shown in the Type column.
 of the Fields selection). When on, a single **Source Control** column appears
 next to System Info with a compact per-item summary (commits / repositories /
 components / developers); each Work Item with source-control activity expands
-in place to a detail section - commit SHA, message, author, date, repository
-and the components (top-level areas) it touched, grouped by repository.
+in place to a detail section - commit SHA, message, author, date, repository,
+the **specific components** it changed and the actual changed item paths,
+grouped by repository.
 
 The data is real. For each work item, the extractor reads its `ArtifactLink`
 relations (already fetched with `$expand=relations`), resolves each
 `vstfs:///Git/Commit/...` against `_apis/git/repositories/{repo}/commits/{sha}`
-(+ `/changes` for the components) and each `vstfs:///VersionControl/Changeset/...`
-against `_apis/tfvc/changesets/{id}`, and maps the results into
-`WorkItemNode.SourceControl` (`Core/Model/SourceControl/`) - repositories,
-commits, contributors and components. Resolution is best-effort: an
-unreadable link is logged and skipped, never fatal. Pull-request and branch
-links are recognised and left for a future facet.
+and each `vstfs:///VersionControl/Changeset/...` against
+`_apis/tfvc/changesets/{id}`, then calls the matching `.../changes` endpoint
+for the commit's changed items. The **component** is taken from each changed
+item's own path: the segment directly under a `ComponentContainerFolders`
+folder (`.../Components/ComponentA/src/x.cs` → `ComponentA`), or, when no
+container matches, the folder the change was actually made in - never a
+truncated ancestor. Everything maps into `WorkItemNode.SourceControl`
+(`Core/Model/SourceControl/`). Resolution is best-effort: an unreadable link
+is logged and skipped, never fatal. Pull-request and branch links are
+recognised and left for a future facet.
 
 ## Export
 
