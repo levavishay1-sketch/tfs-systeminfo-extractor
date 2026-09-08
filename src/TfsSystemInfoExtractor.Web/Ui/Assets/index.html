@@ -230,7 +230,8 @@
     background:none; border:none; padding:0; cursor:pointer; }
   .view-table .tv-si .none { color:var(--muted); font-style:italic; }
 
-  @media (max-width:760px) {
+  /* screen-only: never collapse the real table when printing / exporting to PDF */
+  @media screen and (max-width:760px) {
     .view-table .tv, .view-table .tv thead, .view-table .tv tbody, .view-table .tv tr, .view-table .tv td { display:block; width:auto; }
     .view-table .tv thead { position:absolute; left:-9999px; }
     .view-table .tv colgroup { display:none; }

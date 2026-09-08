@@ -32,9 +32,19 @@ body.pdf-export > .print-header .print-sub { font-size: 10.5px; color: var(--mut
    fixed layout and the columns keep their percentage widths, so proportions match the UI. */
 .view-table .tv-wrap { overflow: visible !important; width: auto !important; }
 .view-table table.tv { width: 100% !important; min-width: 0 !important; }
-.view-table .tv thead { display: table-header-group; }
+/* re-assert the real table roles: the print engine must never see the on-screen
+   responsive collapse (that rule is screen-only, this is a hard guarantee). */
+.view-table .tv { display: table !important; }
+.view-table .tv colgroup { display: table-column-group !important; }
+.view-table .tv col { display: table-column !important; }
+.view-table .tv thead { display: table-header-group !important; position: static !important; left: auto !important; }
+.view-table .tv tbody { display: table-row-group !important; }
+.view-table .tv tr { display: table-row !important; break-inside: avoid; }
+.view-table .tv th, .view-table .tv td { display: table-cell !important; }
+.view-table .tv td::before { content: none !important; }
+.view-table .tv-guide { display: block !important; }
+.view-table .tv-parent { display: none !important; }
 .view-table .tv thead th { position: static !important; }
-.view-table .tv tr { break-inside: avoid; }
 .view-table .tv-si.clamped .body { max-height: none !important; -webkit-mask-image: none !important; mask-image: none !important; }
 .view-table .tv-si .more { display: none !important; }
 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
