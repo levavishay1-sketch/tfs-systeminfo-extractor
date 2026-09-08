@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace TfsSystemInfoExtractor.Core.Model.SourceControl
@@ -15,7 +17,8 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
             Developer? author = null,
             DateTimeOffset? committedOn = null,
             string? repositoryId = null,
-            string? url = null)
+            string? url = null,
+            IEnumerable<string>? components = null)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -28,6 +31,10 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
             CommittedOn = committedOn;
             RepositoryId = repositoryId;
             Url = url;
+            Components = components?
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray() ?? Array.Empty<string>();
         }
 
         /// <summary>Full commit hash or changeset id.</summary>
@@ -43,6 +50,9 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
         public string? RepositoryId { get; }
 
         public string? Url { get; }
+
+        /// <summary>Names of the components (top-level repository areas) this commit changed.</summary>
+        public IReadOnlyList<string> Components { get; }
 
         [JsonIgnore]
         public string ShortId => Id.Length <= 8 ? Id : Id.Substring(0, 8);

@@ -1,7 +1,9 @@
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using TfsSystemInfoExtractor.Core.Exceptions;
 using TfsSystemInfoExtractor.Infrastructure.Configuration;
@@ -29,13 +31,19 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
             ChildLinkRelation = "System.LinkTypes.Hierarchy-Forward"
         };
 
-        private static (TfsWorkItemSource source, StubHttpMessageHandler handler) Build(StubHttpMessageHandler handler)
+        private static (TfsWorkItemSource source, StubHttpMessageHandler handler) Build(
+            StubHttpMessageHandler handler, TfsSourceControlOptions? sourceControlOptions = null)
         {
             var options = Microsoft.Extensions.Options.Options.Create(Options);
             var client = new TfsRestClient(new HttpClient(handler), options);
             var catalog = new TfsFieldCatalog(client);
             var resolver = new TfsSystemInfoFieldResolver(catalog, options);
-            var source = new TfsWorkItemSource(client, resolver, catalog, new HtmlToPlainTextConverter(), options);
+            var scProvider = new TfsGitSourceControlProvider(
+                client,
+                Microsoft.Extensions.Options.Options.Create(sourceControlOptions ?? new TfsSourceControlOptions()),
+                NullLogger<TfsGitSourceControlProvider>.Instance);
+            var source = new TfsWorkItemSource(client, resolver, catalog, new HtmlToPlainTextConverter(),
+                scProvider, NullLogger<TfsWorkItemSource>.Instance, options);
             return (source, handler);
         }
 
@@ -139,6 +147,91 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
             await source.GetAsync(2, CancellationToken.None);
 
             Assert.Single(handler.RequestedUrls.FindAll(u => u.Contains("_apis/wit/fields")));
+        }
+
+        private const string CommitLinkWorkItem = @"{
+            ""id"": 60, ""fields"": { ""System.WorkItemType"": ""Feature"", ""System.Title"": ""t"", ""System.State"": ""Active"" },
+            ""relations"": [
+                { ""rel"": ""ArtifactLink"", ""attributes"": { ""name"": ""Fixed in Commit"" },
+                  ""url"": ""vstfs:///Git/Commit/a11e1111-1111-1111-1111-111111111111%2Fb22e2222-2222-2222-2222-222222222222%2F1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"" },
+                { ""rel"": ""System.LinkTypes.Hierarchy-Reverse"", ""url"": ""http://tfs/_apis/wit/workItems/1"" } ] }";
+
+        [Fact]
+        public async Task Resolves_a_linked_git_commit_into_source_control_info()
+        {
+            var handler = new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", FieldsJson)
+                .Map("_apis/wit/workitems/60", CommitLinkWorkItem)
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b/changes",
+                    @"{ ""changes"": [
+                        { ""item"": { ""path"": ""/Payments/Api/PayService.cs"", ""gitObjectType"": ""blob"" } },
+                        { ""item"": { ""path"": ""/Reporting/Report.cs"", ""gitObjectType"": ""blob"" } },
+                        { ""item"": { ""path"": ""/Payments/Model.cs"", ""gitObjectType"": ""blob"" } } ] }")
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+                    @"{ ""commitId"": ""1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"",
+                        ""comment"": ""Wire up the payment service"",
+                        ""author"": { ""name"": ""Dana Cohen"", ""email"": ""dcohen@corp"", ""date"": ""2026-09-05T14:30:00Z"" },
+                        ""committer"": { ""name"": ""Dana Cohen"", ""email"": ""dcohen@corp"", ""date"": ""2026-09-05T14:31:00Z"" },
+                        ""remoteUrl"": ""http://tfs/_git/Reports/commit/1a2b3c4d"" }")
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222",
+                    @"{ ""id"": ""b22e2222-2222-2222-2222-222222222222"", ""name"": ""Reports.Web"",
+                        ""project"": { ""name"": ""Reports"" }, ""remoteUrl"": ""http://tfs/_git/Reports.Web"" }");
+            var (source, _) = Build(handler);
+
+            var raw = await source.GetAsync(60, CancellationToken.None);
+
+            Assert.NotNull(raw.SourceControl);
+            var sc = raw.SourceControl!;
+
+            var repo = Assert.Single(sc.Repositories);
+            Assert.Equal("Reports.Web", repo.Name);
+            Assert.Equal("TfsGit", repo.Kind);
+
+            var commit = Assert.Single(sc.Commits);
+            Assert.Equal("1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", commit.Id);
+            Assert.Equal("1a2b3c4d", commit.ShortId);
+            Assert.Equal("Wire up the payment service", commit.Message);
+            Assert.Equal("Dana Cohen", commit.Author!.DisplayName);
+            Assert.Equal("dcohen@corp", commit.Author.UniqueName);
+            Assert.Equal(2026, commit.CommittedOn!.Value.Year);
+            Assert.Equal("http://tfs/_git/Reports/commit/1a2b3c4d", commit.Url);
+            Assert.Equal(new[] { "Payments", "Reporting" }, commit.Components);
+
+            Assert.Equal(new[] { "Payments", "Reporting" }, sc.Components.Select(c => c.Name).ToArray());
+            Assert.Equal("Dana Cohen", Assert.Single(sc.Contributors).DisplayName);
+        }
+
+        [Fact]
+        public async Task A_commit_whose_detail_cannot_be_read_is_skipped_not_thrown()
+        {
+            var handler = new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", FieldsJson)
+                .Map("_apis/wit/workitems/60", CommitLinkWorkItem)
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222/commits/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b", "gone", HttpStatusCode.NotFound)
+                .Map("_apis/git/repositories/b22e2222-2222-2222-2222-222222222222",
+                    @"{ ""id"": ""b22e2222-2222-2222-2222-222222222222"", ""name"": ""Reports.Web"" }");
+            var (source, _) = Build(handler);
+
+            var raw = await source.GetAsync(60, CancellationToken.None);
+
+            // the repo still resolved; the unreadable commit is simply absent
+            Assert.NotNull(raw.SourceControl);
+            Assert.Empty(raw.SourceControl!.Commits);
+            Assert.Single(raw.SourceControl.Repositories);
+        }
+
+        [Fact]
+        public async Task Source_control_is_not_touched_when_disabled()
+        {
+            var handler = new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", FieldsJson)
+                .Map("_apis/wit/workitems/60", CommitLinkWorkItem);
+            var (source, _) = Build(handler, new TfsSourceControlOptions { Enabled = false });
+
+            var raw = await source.GetAsync(60, CancellationToken.None);
+
+            Assert.Null(raw.SourceControl);
+            Assert.DoesNotContain(handler.RequestedUrls, u => u.Contains("_apis/git/"));
         }
     }
 }

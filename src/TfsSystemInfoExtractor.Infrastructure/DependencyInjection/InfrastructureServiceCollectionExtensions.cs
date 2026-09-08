@@ -26,6 +26,9 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
                 .Bind(configuration.GetSection(TfsOptions.SectionName));
             services.AddSingleton<IValidateOptions<TfsOptions>, TfsOptionsValidator>();
 
+            services.AddOptions<TfsSourceControlOptions>()
+                .Bind(configuration.GetSection(TfsSourceControlOptions.SectionName));
+
             services.AddOptions<ExportOptions>()
                 .Bind(configuration.GetSection(ExportOptions.SectionName));
 
@@ -49,6 +52,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
 
             services.AddScoped<IFieldCatalog, TfsFieldCatalog>();
             services.AddScoped<ISystemInfoFieldResolver, TfsSystemInfoFieldResolver>();
+            services.AddScoped<IWorkItemSourceControlProvider, TfsGitSourceControlProvider>();
             services.AddScoped<IWorkItemSource, TfsWorkItemSource>();
             services.AddSingleton<IHtmlToText, HtmlToPlainTextConverter>();
             services.AddSingleton<IExtractionArtifactStore, FileSystemArtifactStore>();

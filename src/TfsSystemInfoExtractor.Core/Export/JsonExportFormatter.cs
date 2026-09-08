@@ -9,7 +9,8 @@ namespace TfsSystemInfoExtractor.Core.Export
     /// Serializes an <see cref="ExtractionResult"/> to the JSON the browser consumes as
     /// its data feed (and offers as a raw "Download JSON"). Property names stay
     /// PascalCase and the shape (<c>GeneratedAt</c> / <c>Roots</c> / <c>AvailableFields</c>
-    /// and node <c>Id,Type,Title,State,Url,SystemInfo,Error,Fields,SourceControl,Children</c>)
+    /// and node <c>Id,Type,Title,State,Url,SystemInfo,Error,Fields,SourceControl,Children</c>,
+    /// where <c>SourceControl</c> is <c>{ Repositories, Commits, Contributors, Components }</c>)
     /// is a contract the UI relies on, so it must not drift.
     /// </summary>
     public sealed class JsonExportFormatter

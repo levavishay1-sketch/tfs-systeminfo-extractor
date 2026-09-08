@@ -5,10 +5,12 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Exceptions;
 using TfsSystemInfoExtractor.Core.Model;
+using TfsSystemInfoExtractor.Core.Model.SourceControl;
 using TfsSystemInfoExtractor.Infrastructure.Configuration;
 
 namespace TfsSystemInfoExtractor.Infrastructure.Tfs
@@ -24,6 +26,8 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
         private readonly ISystemInfoFieldResolver _fieldResolver;
         private readonly IFieldCatalog _fieldCatalog;
         private readonly IHtmlToText _htmlToText;
+        private readonly IWorkItemSourceControlProvider _sourceControl;
+        private readonly ILogger<TfsWorkItemSource> _logger;
         private readonly TfsOptions _options;
 
         public TfsWorkItemSource(
@@ -31,12 +35,16 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             ISystemInfoFieldResolver fieldResolver,
             IFieldCatalog fieldCatalog,
             IHtmlToText htmlToText,
+            IWorkItemSourceControlProvider sourceControl,
+            ILogger<TfsWorkItemSource> logger,
             IOptions<TfsOptions> options)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _fieldResolver = fieldResolver ?? throw new ArgumentNullException(nameof(fieldResolver));
             _fieldCatalog = fieldCatalog ?? throw new ArgumentNullException(nameof(fieldCatalog));
             _htmlToText = htmlToText ?? throw new ArgumentNullException(nameof(htmlToText));
+            _sourceControl = sourceControl ?? throw new ArgumentNullException(nameof(sourceControl));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _options = (options ?? throw new ArgumentNullException(nameof(options))).Value;
         }
 
@@ -53,7 +61,9 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                     .GetJsonAsync($"_apis/wit/workitems/{id.ToString(CultureInfo.InvariantCulture)}", "$expand=relations", cancellationToken)
                     .ConfigureAwait(false);
 
-                return TfsResponseMapper.ToRawWorkItem(id, document.RootElement, fieldRef, catalog, _htmlToText, _options);
+                var root = document.RootElement;
+                var sourceControl = await ResolveSourceControlAsync(id, root, cancellationToken).ConfigureAwait(false);
+                return TfsResponseMapper.ToRawWorkItem(id, root, fieldRef, catalog, _htmlToText, _options, sourceControl);
             }
             catch (TfsUnreachableException ex)
             {
@@ -62,6 +72,46 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             catch (TfsHttpException ex)
             {
                 throw ToAccessException(id, ex);
+            }
+        }
+
+        /// <summary>
+        /// Best-effort: read the work item's artifact links and resolve their source-control
+        /// details. A failure here never fails the work item - the node just carries no
+        /// source control.
+        /// </summary>
+        private async Task<SourceControlInfo?> ResolveSourceControlAsync(int id, System.Text.Json.JsonElement root, CancellationToken cancellationToken)
+        {
+            var links = TfsResponseMapper.ExtractArtifactLinks(root);
+            if (links.Count == 0)
+            {
+                return null;
+            }
+
+            try
+            {
+                var info = await _sourceControl.GetAsync(id, links, cancellationToken).ConfigureAwait(false);
+                if (info == null || info.IsEmpty)
+                {
+                    _logger.LogInformation(
+                        "Work item {WorkItemId} has {LinkCount} artifact link(s) but no source control could be resolved. First link: {FirstLink}",
+                        id, links.Count, links[0].Uri);
+                    return null;
+                }
+
+                _logger.LogInformation(
+                    "Work item {WorkItemId}: {Commits} commit(s), {Repos} repo(s), {Components} component(s) from {LinkCount} artifact link(s).",
+                    id, info.Commits.Count, info.Repositories.Count, info.Components.Count, links.Count);
+                return info;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve source control for work item {WorkItemId}.", id);
+                return null;
             }
         }
 

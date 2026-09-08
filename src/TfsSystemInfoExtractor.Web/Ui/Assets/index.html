@@ -222,6 +222,9 @@
   .view-table .tv-sc-msg { min-width:0; word-break:break-word; }
   .view-table .tv-sc-meta { font-size:11px; color:var(--muted); flex:none; }
   .view-table .tv-sc-devs { font-size:11.5px; color:var(--muted); }
+  .view-table .tv-sc-complist { display:flex; flex-wrap:wrap; gap:4px; }
+  .view-table .tv-sc-comp { flex:none; font-size:10.5px; font-weight:600; color:var(--si-text);
+    background:var(--si-bg); border:1px solid var(--si-border); border-radius:5px; padding:0 6px; }
 
 </style>
 </head>
@@ -469,9 +472,9 @@ function toggleScExpand(id) {
 function fieldLabel(ref) { return fieldLabels[ref] || ref; }
 function tableColumnCount() { return 5 + (scOn ? 1 : 0) + extraFields.length; }
 
-// Normalises a node's SourceControlInfo (repositories / commits / contributors) into
-// what the column needs. Returns null when there is nothing to show - so no empty
-// expander appears. Add PRs / branches / builds here as SourceControlInfo grows.
+// Normalises a node's SourceControlInfo (repositories / commits / contributors /
+// components) into what the column needs. Returns null when there is nothing to show
+// - so no empty expander appears. Add PRs / branches / builds here as SourceControlInfo grows.
 function scData(n) {
   const sc = n && n.SourceControl;
   if (!sc) return null;
@@ -482,14 +485,18 @@ function scData(n) {
   const devs = new Set(contributors.length ? contributors : commitDevs);
   const repoKeys = repos.length ? repos.map(rp => rp.Id)
     : Array.from(new Set(commits.map(c => c.RepositoryId).filter(Boolean)));
-  if (!commits.length && !repoKeys.length && !devs.size) return null;
+  const componentNames = new Set((sc.Components || []).map(c => c.Name).filter(Boolean));
+  commits.forEach(c => (c.Components || []).forEach(x => { if (x) componentNames.add(x); }));
+  if (!commits.length && !repoKeys.length && !devs.size && !componentNames.size) return null;
   return { sc: sc, commits: commits, repos: repos,
-    nCommits: commits.length, nRepos: repoKeys.length, nDevs: devs.size };
+    nCommits: commits.length, nRepos: repoKeys.length, nDevs: devs.size,
+    nComponents: componentNames.size, componentNames: Array.from(componentNames) };
 }
 function scSummaryText(d) {
   const parts = [];
   if (d.nCommits) parts.push(d.nCommits + (d.nCommits === 1 ? ' commit' : ' commits'));
   if (d.nRepos) parts.push(d.nRepos + (d.nRepos === 1 ? ' repo' : ' repos'));
+  if (d.nComponents) parts.push(d.nComponents + (d.nComponents === 1 ? ' component' : ' components'));
   if (d.nDevs) parts.push(d.nDevs + (d.nDevs === 1 ? ' dev' : ' devs'));
   return parts.join(' · ');
 }
@@ -696,7 +703,7 @@ function tableRow(r) {
       tg.addEventListener('click', ev => { ev.stopPropagation(); toggleScExpand(n.Id); });
       box.appendChild(tg);
       const sum = el('div', 'tv-sc-sum');
-      [[d.nCommits, 'commit'], [d.nRepos, 'repo'], [d.nDevs, 'dev']].forEach(pair => {
+      [[d.nCommits, 'commit'], [d.nRepos, 'repo'], [d.nComponents, 'component'], [d.nDevs, 'dev']].forEach(pair => {
         if (pair[0]) sum.appendChild(el('span', 'scpill', pair[0] + ' ' + pair[1] + (pair[0] === 1 ? '' : 's')));
       });
       box.appendChild(sum);
@@ -759,11 +766,21 @@ function scDetail(d) {
         const who = c.Author && (c.Author.DisplayName || c.Author.Name);
         const meta = [who, c.CommittedOn ? scFmtDate(c.CommittedOn) : ''].filter(Boolean).join(' · ');
         if (meta) li.appendChild(el('span', 'tv-sc-meta', meta));
+        (c.Components || []).forEach(name => li.appendChild(el('span', 'tv-sc-comp', name)));
         ul.appendChild(li);
       });
       rb.appendChild(ul);
       sec.appendChild(rb);
     });
+    wrap.appendChild(sec);
+  }
+
+  if (d.componentNames && d.componentNames.length) {
+    const sec = el('div', 'tv-sc-section');
+    sec.appendChild(el('div', 'tv-sc-h', d.componentNames.length === 1 ? 'Component' : 'Components'));
+    const list = el('div', 'tv-sc-complist');
+    d.componentNames.slice().sort().forEach(name => list.appendChild(el('span', 'tv-sc-comp', name)));
+    sec.appendChild(list);
     wrap.appendChild(sec);
   }
 

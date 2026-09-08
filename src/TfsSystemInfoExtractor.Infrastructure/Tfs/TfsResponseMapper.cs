@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Model;
+using TfsSystemInfoExtractor.Core.Model.SourceControl;
 using TfsSystemInfoExtractor.Infrastructure.Configuration;
 
 namespace TfsSystemInfoExtractor.Infrastructure.Tfs
@@ -10,6 +11,8 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
     /// <summary>Pure mapping from a TFS work-item JSON payload to <see cref="RawWorkItem"/>.</summary>
     internal static class TfsResponseMapper
     {
+        /// <summary>TFS relation type for a link to a commit / changeset / pull request / branch.</summary>
+        private const string ArtifactLinkRelation = "ArtifactLink";
         /// <summary>Fields already surfaced as first-class <see cref="RawWorkItem"/> properties; never offered as "extra".</summary>
         private static readonly HashSet<string> DefaultFieldRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -22,7 +25,8 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             string systemInfoFieldRef,
             IReadOnlyDictionary<string, FieldDefinition> catalog,
             IHtmlToText htmlToText,
-            TfsOptions options)
+            TfsOptions options,
+            SourceControlInfo? sourceControl = null)
         {
             var fields = root.TryGetProperty("fields", out var f) ? f : default;
 
@@ -34,8 +38,48 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                 webUrl: GetHtmlLink(root),
                 systemInfoHtml: GetFieldString(fields, systemInfoFieldRef),
                 childIds: GetChildIds(root, options.ChildLinkRelation),
-                sourceControl: null,
+                sourceControl: sourceControl,
                 fields: ExtractExtraFields(fields, systemInfoFieldRef, catalog, htmlToText));
+        }
+
+        /// <summary>
+        /// The work item's <c>ArtifactLink</c> relations - links to commits, changesets,
+        /// pull requests and branches. A source-control provider resolves the details.
+        /// </summary>
+        public static IReadOnlyList<WorkItemArtifactLink> ExtractArtifactLinks(JsonElement root)
+        {
+            var result = new List<WorkItemArtifactLink>();
+            if (!root.TryGetProperty("relations", out var relations) || relations.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var relation in relations.EnumerateArray())
+            {
+                if (!relation.TryGetProperty("rel", out var rel) ||
+                    !string.Equals(rel.GetString(), ArtifactLinkRelation, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!relation.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                string? name = null;
+                if (relation.TryGetProperty("attributes", out var attributes) &&
+                    attributes.ValueKind == JsonValueKind.Object &&
+                    attributes.TryGetProperty("name", out var nameValue) &&
+                    nameValue.ValueKind == JsonValueKind.String)
+                {
+                    name = nameValue.GetString();
+                }
+
+                result.Add(new WorkItemArtifactLink(url.GetString()!, name));
+            }
+
+            return result;
         }
 
         private static IReadOnlyDictionary<string, string> ExtractExtraFields(

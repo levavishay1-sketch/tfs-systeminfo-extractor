@@ -57,6 +57,10 @@ Defaults live in `src/TfsSystemInfoExtractor.App/appsettings.json`:
 | `Tfs:ApiVersion` | REST API version | `3.0` |
 | `Tfs:SystemInfoFieldDisplayName` | field to extract, by display name | `System Info` |
 | `Tfs:RequestTimeoutSeconds` | per-request timeout | `60` |
+| `Tfs:SourceControl:Enabled` | resolve linked commits / changesets | `true` |
+| `Tfs:SourceControl:MaxCommitsPerWorkItem` | cap on links resolved per work item | `50` |
+| `Tfs:SourceControl:IncludeComponents` | also read each commit's changed paths for components (one extra call per commit) | `true` |
+| `Tfs:SourceControl:ComponentPathDepth` | which path segment (from the repo / TFVC project root) names a component | `1` |
 | `Export:OutputDirectory` | folder a copy of each export is saved to on click | `C:\TfsSystemInfoExport` |
 | `Export:BrowserPath` | explicit path to msedge.exe / chrome.exe for PDF (empty = auto-detect) | `` |
 | `Export:PdfTimeoutSeconds` | hard timeout for one PDF render | `40` |
@@ -122,11 +126,19 @@ The default columns are unchanged; the hierarchy is shown in the Type column.
 **Source Control** is an optional toolbar toggle (off by default, independent
 of the Fields selection). When on, a single **Source Control** column appears
 next to System Info with a compact per-item summary (commits / repositories /
-developers); each Work Item with source-control activity expands in place to a
-detail section - commit SHA, message, author, date and repository, grouped by
-repository. The data comes from `WorkItemNode.SourceControl`
-(`Core/Model/SourceControl/`), the single extension point for adding pull
-requests, branches or builds later.
+components / developers); each Work Item with source-control activity expands
+in place to a detail section - commit SHA, message, author, date, repository
+and the components (top-level areas) it touched, grouped by repository.
+
+The data is real. For each work item, the extractor reads its `ArtifactLink`
+relations (already fetched with `$expand=relations`), resolves each
+`vstfs:///Git/Commit/...` against `_apis/git/repositories/{repo}/commits/{sha}`
+(+ `/changes` for the components) and each `vstfs:///VersionControl/Changeset/...`
+against `_apis/tfvc/changesets/{id}`, and maps the results into
+`WorkItemNode.SourceControl` (`Core/Model/SourceControl/`) - repositories,
+commits, contributors and components. Resolution is best-effort: an
+unreadable link is logged and skipped, never fatal. Pull-request and branch
+links are recognised and left for a future facet.
 
 ## Export
 

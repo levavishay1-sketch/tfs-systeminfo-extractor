@@ -19,11 +19,13 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
         public SourceControlInfo(
             IEnumerable<SourceRepository>? repositories = null,
             IEnumerable<Commit>? commits = null,
-            IEnumerable<Developer>? contributors = null)
+            IEnumerable<Developer>? contributors = null,
+            IEnumerable<SourceComponent>? components = null)
         {
             Repositories = repositories?.ToArray() ?? Array.Empty<SourceRepository>();
             Commits = commits?.ToArray() ?? Array.Empty<Commit>();
             Contributors = contributors?.ToArray() ?? Array.Empty<Developer>();
+            Components = components?.ToArray() ?? Array.Empty<SourceComponent>();
         }
 
         /// <summary>Repositories the work item's changes live in.</summary>
@@ -36,7 +38,11 @@ namespace TfsSystemInfoExtractor.Core.Model.SourceControl
         /// reviewer or co-author may appear here without a commit of their own.</summary>
         public IReadOnlyList<Developer> Contributors { get; }
 
+        /// <summary>The distinct components (top-level repository areas) the work item's commits touched.</summary>
+        public IReadOnlyList<SourceComponent> Components { get; }
+
         [JsonIgnore]
-        public bool IsEmpty => Repositories.Count == 0 && Commits.Count == 0 && Contributors.Count == 0;
+        public bool IsEmpty =>
+            Repositories.Count == 0 && Commits.Count == 0 && Contributors.Count == 0 && Components.Count == 0;
     }
 }
