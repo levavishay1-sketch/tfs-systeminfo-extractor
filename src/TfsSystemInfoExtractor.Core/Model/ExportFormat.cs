@@ -5,7 +5,7 @@ namespace TfsSystemInfoExtractor.Core.Model
     {
         Json,
         Markdown,
-        Csv,
+        Excel,
         Pdf
     }
 }

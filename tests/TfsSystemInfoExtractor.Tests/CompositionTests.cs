@@ -63,7 +63,7 @@ namespace TfsSystemInfoExtractor.Tests
             using var provider = BuildContainer();
             var selector = provider.GetRequiredService<ReportRendererSelector>();
 
-            foreach (var token in new[] { "csv", "md", "markdown", "pdf" })
+            foreach (var token in new[] { "xlsx", "excel", "md", "markdown", "pdf" })
             {
                 Assert.True(selector.TryResolve(token, out _), $"'{token}' did not resolve");
             }

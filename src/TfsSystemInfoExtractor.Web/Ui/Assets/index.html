@@ -323,7 +323,7 @@
         <span class='exportwrap'>
           <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
           <div class='menu' id='exportMenu' hidden>
-            <button type='button' data-fmt='csv'>CSV <small>(current view)</small><span class='tag'>default</span></button>
+            <button type='button' data-fmt='xlsx'>Excel <small>(current view)</small><span class='tag'>default</span></button>
             <button type='button' data-fmt='pdf'>PDF <small>(current view)</small></button>
             <button type='button' data-fmt='pdf-info'>PDF System Info <small>(only items with System Info)</small></button>
             <button type='button' data-fmt='json'>JSON <small>(raw data)</small></button>
@@ -1012,7 +1012,7 @@ function doExport(kind) {
   if (!jobId) return;
   if (kind === 'json') { location.href = '/api/result?jobId=' + jobId + '&download=1'; return; }
   const infoOnly = kind === 'pdf-info';
-  const format = (kind === 'pdf' || kind === 'pdf-info') ? 'pdf' : kind; // 'csv' | 'md' | 'pdf'
+  const format = (kind === 'pdf' || kind === 'pdf-info') ? 'pdf' : kind; // 'xlsx' | 'md' | 'pdf'
   exportViaBlob(format, buildReportView(infoOnly));
 }
 updateCount();

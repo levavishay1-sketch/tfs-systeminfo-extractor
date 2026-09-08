@@ -5,13 +5,14 @@ using TfsSystemInfoExtractor.Core.Model;
 
 namespace TfsSystemInfoExtractor.Core.Reporting
 {
-    /// <summary>Resolves the <see cref="IReportRenderer"/> for the short token the UI sends ("csv", "md", "pdf").</summary>
+    /// <summary>Resolves the <see cref="IReportRenderer"/> for the short token the UI sends ("xlsx", "md", "pdf").</summary>
     public sealed class ReportRendererSelector
     {
         private static readonly IReadOnlyDictionary<string, ExportFormat> Tokens =
             new Dictionary<string, ExportFormat>(StringComparer.OrdinalIgnoreCase)
             {
-                ["csv"] = ExportFormat.Csv,
+                ["xlsx"] = ExportFormat.Excel,
+                ["excel"] = ExportFormat.Excel,
                 ["md"] = ExportFormat.Markdown,
                 ["markdown"] = ExportFormat.Markdown,
                 ["pdf"] = ExportFormat.Pdf

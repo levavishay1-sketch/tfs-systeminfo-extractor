@@ -13,7 +13,7 @@ namespace TfsSystemInfoExtractor.Core.DependencyInjection
         /// <summary>
         /// Registers the domain/application services: the id parser, hierarchy walker,
         /// extraction use-case, the clock, the JSON result serializer, and the pure
-        /// (CSV / Markdown) report renderers. Infrastructure (a real
+        /// (Excel / Markdown) report renderers. Infrastructure (a real
         /// <see cref="IWorkItemSource"/>, the browser PDF engine, ...) is contributed
         /// separately by the Infrastructure and Web packages.
         /// </summary>
@@ -29,7 +29,7 @@ namespace TfsSystemInfoExtractor.Core.DependencyInjection
 
             services.AddSingleton<JsonExportFormatter>();
 
-            services.AddSingleton<IReportRenderer, CsvReportRenderer>();
+            services.AddSingleton<IReportRenderer, ExcelReportRenderer>();
             services.AddSingleton<IReportRenderer, MarkdownReportRenderer>();
             services.AddSingleton<ReportRendererSelector>();
 

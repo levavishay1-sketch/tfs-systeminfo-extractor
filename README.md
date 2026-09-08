@@ -3,7 +3,7 @@
 Recursively walks a set of TFS / Azure DevOps Server work item hierarchies
 (`System.LinkTypes.Hierarchy-Forward` children only), pulls the custom
 **System Info** field from every item, and presents the result in a small
-local browser UI with CSV / PDF / JSON / Markdown export.
+local browser UI with Excel / PDF / JSON / Markdown export.
 
 Nothing is deployed anywhere — running the exe starts an `HttpListener` that
 only listens on `localhost` and opens your default browser to it. TFS is
@@ -22,7 +22,7 @@ src/
       Extraction/       WorkItemIdParser, HierarchyWalker, ExtractionService
       Export/           ExportArtifact/Format helpers, JsonExportFormatter (the data feed)
       Reporting/        ReportView, IReportRenderer, ReportRendererSelector,
-                        Csv / Markdown renderers, IBrowserPdfEngine
+                        Excel (.xlsx) / Markdown renderers, IBrowserPdfEngine
       Exceptions/       TfsExtractorException hierarchy (incl. PdfRenderException, BrowserNotFoundException)
   TfsSystemInfoExtractor.Infrastructure  adapters
       Tfs/              TfsRestClient, TfsWorkItemSource, TfsFieldCatalog,
@@ -101,22 +101,29 @@ hierarchy is shown in the Type column.
 
 ## Export
 
-**Download / Export** offers **CSV**, **PDF**, **PDF System Info**, **JSON**
-(raw data) and **Markdown**. Nothing is generated until you click one -
-loading, browsing, filtering and changing columns produce no files.
+**Download / Export** offers **Excel** (the default), **PDF**, **PDF System
+Info**, **JSON** (raw data) and **Markdown**. Nothing is generated until you
+click one - loading, browsing, filtering and changing columns produce no files.
 
 At the moment of the click the browser hands the server the exact view it is
 showing (columns, order, active filter, hierarchy, the added fields, and the
 rendered table HTML). The matching `IReportRenderer` turns that into a file
 that is streamed to you and also saved to `Export:OutputDirectory`.
 
+- **Excel** (`.xlsx`) is a formatted workbook of that same prepared view: a
+  real Excel table with banded rows and a column auto-filter, a frozen and
+  styled header row, parent Work Items shown bold on a tint with children
+  indented in the Type column, content-sized columns, and every value set to
+  wrap so long System Info / extra fields are fully readable and never
+  truncated. Built on `DocumentFormat.OpenXml` only (MIT - no commercial
+  dependency, no Excel install needed).
 - **PDF / PDF System Info** are produced by the machine's own headless
   **Edge or Chrome** (`--print-to-pdf`) rendering the UI's own HTML/CSS - so
   the PDF looks like the table, and Hebrew / RTL / mixed text render
   correctly (Chromium's bidi). No PDF library, no bundled browser, no
   licence. "PDF System Info" is the same view with the System-Info-only
   filter applied. If no browser is found, PDF export returns a clear message
-  and CSV / Markdown still work.
+  and Excel / Markdown still work.
 - Adding a new format = one new `IReportRenderer` + one DI line; no change to
   the domain, the extraction pipeline or the UI's view logic.
 
