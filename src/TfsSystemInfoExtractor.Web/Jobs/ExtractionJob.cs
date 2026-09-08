@@ -27,6 +27,8 @@ namespace TfsSystemInfoExtractor.Web.Jobs
         private int _processedCount;
         private volatile string? _error;
         private volatile ExtractionResult? _result;
+        private volatile bool _authRequired;
+        private volatile bool _credentialsRejected;
 
         public ExtractionJob(string id)
         {
@@ -46,6 +48,12 @@ namespace TfsSystemInfoExtractor.Web.Jobs
         public ExtractionResult? Result => _result;
 
         public bool HasResult => _result != null;
+
+        /// <summary>The run stopped on a 401 from Azure DevOps; the UI should prompt for a sign-in and re-run.</summary>
+        public bool AuthRequired => _authRequired;
+
+        /// <summary>True when an explicit username/password was already tried and still got a 401.</summary>
+        public bool CredentialsRejected => _credentialsRejected;
 
         public IReadOnlyList<string> LogSnapshot
         {
@@ -78,6 +86,17 @@ namespace TfsSystemInfoExtractor.Web.Jobs
         public void Fail(string message)
         {
             _error = message;
+            _status = JobStatus.Faulted;
+        }
+
+        /// <summary>
+        /// End the run because Azure DevOps returned 401. No <see cref="Error"/> is set - the
+        /// UI shows a sign-in dialog instead of a raw message, then re-runs.
+        /// </summary>
+        public void RequireCredentials(bool credentialsRejected)
+        {
+            _authRequired = true;
+            _credentialsRejected = credentialsRejected;
             _status = JobStatus.Faulted;
         }
     }

@@ -108,6 +108,10 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             {
                 throw;
             }
+            catch (TfsAuthenticationRequiredException)
+            {
+                throw; // a 401 must reach the run flow so it can prompt for sign-in
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Could not resolve source control for work item {WorkItemId}.", id);

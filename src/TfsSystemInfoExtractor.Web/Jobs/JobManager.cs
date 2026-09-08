@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using TfsSystemInfoExtractor.Core.Exceptions;
 using TfsSystemInfoExtractor.Core.Extraction;
 using TfsSystemInfoExtractor.Core.Model;
 
@@ -60,6 +61,13 @@ namespace TfsSystemInfoExtractor.Web.Jobs
                     .ConfigureAwait(false);
 
                 job.Complete(result);
+            }
+            catch (TfsAuthenticationRequiredException ex)
+            {
+                // no password in this message - just that a 401 happened
+                _logger.LogWarning("Extraction job {JobId} needs an Azure DevOps sign-in (401).", job.Id);
+                job.AppendLog(0, "[AUTH] " + ex.Message);
+                job.RequireCredentials(ex.CredentialsWereSupplied);
             }
             catch (Exception ex)
             {

@@ -30,6 +30,7 @@ namespace TfsSystemInfoExtractor.Web.DependencyInjection
             services.AddSingleton<IHttpEndpoint, IndexEndpoint>();
             services.AddSingleton<IHttpEndpoint, StartExtractionEndpoint>();
             services.AddSingleton<IHttpEndpoint, JobStatusEndpoint>();
+            services.AddSingleton<IHttpEndpoint, TfsCredentialsEndpoint>();
             services.AddSingleton<IHttpEndpoint, ResultEndpoint>();
             services.AddSingleton<IHttpEndpoint, ExportEndpoint>();
             services.AddSingleton<RequestRouter>();

@@ -127,7 +127,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                         components[name] = new SourceComponent(name, repoId);
                     }
                 }
-                catch (Exception ex) when (!(ex is OperationCanceledException))
+                catch (Exception ex) when (!(ex is OperationCanceledException) && !(ex is TfsSystemInfoExtractor.Core.Exceptions.TfsAuthenticationRequiredException))
                 {
                     _logger.LogWarning(ex, "Could not resolve Git commit {Sha} in repo {RepoId} for work item {WorkItemId}.", sha, repoId, workItemId);
                 }
@@ -159,7 +159,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                         components[name] = new SourceComponent(name, repoId);
                     }
                 }
-                catch (Exception ex) when (!(ex is OperationCanceledException))
+                catch (Exception ex) when (!(ex is OperationCanceledException) && !(ex is TfsSystemInfoExtractor.Core.Exceptions.TfsAuthenticationRequiredException))
                 {
                     _logger.LogWarning(ex, "Could not resolve TFVC changeset {ChangesetId} for work item {WorkItemId}.", changesetId, workItemId);
                 }
@@ -195,7 +195,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                 var url = GetString(root, "remoteUrl") ?? GetString(root, "webUrl") ?? GetString(root, "url");
                 repo = new SourceRepository(repoId, name, url, "TfsGit");
             }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
+            catch (Exception ex) when (!(ex is OperationCanceledException) && !(ex is TfsSystemInfoExtractor.Core.Exceptions.TfsAuthenticationRequiredException))
             {
                 _logger.LogWarning(ex, "Could not read Git repository {RepoId}.", repoId);
             }
@@ -251,7 +251,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                     }
                 }
             }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
+            catch (Exception ex) when (!(ex is OperationCanceledException) && !(ex is TfsSystemInfoExtractor.Core.Exceptions.TfsAuthenticationRequiredException))
             {
                 _logger.LogWarning(ex, "Could not read changed items for Git commit {Sha} in repo {RepoId}.", sha, repoId);
             }
@@ -308,7 +308,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                     }
                 }
             }
-            catch (Exception ex) when (!(ex is OperationCanceledException))
+            catch (Exception ex) when (!(ex is OperationCanceledException) && !(ex is TfsSystemInfoExtractor.Core.Exceptions.TfsAuthenticationRequiredException))
             {
                 _logger.LogWarning(ex, "Could not read changed items for TFVC changeset {ChangesetId}.", changesetId);
             }

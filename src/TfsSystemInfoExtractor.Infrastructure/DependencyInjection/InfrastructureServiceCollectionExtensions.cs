@@ -32,14 +32,24 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
             services.AddOptions<ExportOptions>()
                 .Bind(configuration.GetSection(ExportOptions.SectionName));
 
+            // Holds the credential the TFS client authenticates with: the Windows identity
+            // by default, or an explicit username/password once a run hits 401 and the
+            // user signs in. Singleton so the choice is process-wide and the HTTP handler
+            // (which keeps a reference) picks up a change immediately.
+            services.AddSingleton<TfsCredentialStore>();
+            services.AddSingleton<Core.Abstractions.ITfsCredentialPrompt>(sp => sp.GetRequiredService<TfsCredentialStore>());
+
             services.AddHttpClient(TfsRestClient.HttpClientName, (provider, client) =>
                 {
                     var options = provider.GetRequiredService<IOptions<TfsOptions>>().Value;
                     client.Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);
                 })
-                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                .ConfigurePrimaryHttpMessageHandler(provider => new HttpClientHandler
                 {
-                    UseDefaultCredentials = true,
+                    // an ICredentials the handler consults per auth challenge; returns the
+                    // Windows identity until an explicit sign-in replaces it
+                    Credentials = provider.GetRequiredService<TfsCredentialStore>(),
+                    UseDefaultCredentials = false,
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
                 });
 
@@ -47,7 +57,8 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
             {
                 var factory = provider.GetRequiredService<IHttpClientFactory>();
                 return new TfsRestClient(factory.CreateClient(TfsRestClient.HttpClientName),
-                    provider.GetRequiredService<IOptions<TfsOptions>>());
+                    provider.GetRequiredService<IOptions<TfsOptions>>(),
+                    provider.GetRequiredService<TfsCredentialStore>());
             });
 
             services.AddScoped<IFieldCatalog, TfsFieldCatalog>();

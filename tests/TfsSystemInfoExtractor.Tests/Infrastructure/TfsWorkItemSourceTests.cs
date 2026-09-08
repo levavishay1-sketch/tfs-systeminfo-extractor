@@ -32,10 +32,10 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
         };
 
         private static (TfsWorkItemSource source, StubHttpMessageHandler handler) Build(
-            StubHttpMessageHandler handler, TfsSourceControlOptions? sourceControlOptions = null)
+            StubHttpMessageHandler handler, TfsSourceControlOptions? sourceControlOptions = null, TfsCredentialStore? credentials = null)
         {
             var options = Microsoft.Extensions.Options.Options.Create(Options);
-            var client = new TfsRestClient(new HttpClient(handler), options);
+            var client = new TfsRestClient(new HttpClient(handler), options, credentials ?? new TfsCredentialStore());
             var catalog = new TfsFieldCatalog(client);
             var resolver = new TfsSystemInfoFieldResolver(catalog, options);
             var scProvider = new TfsGitSourceControlProvider(
@@ -102,6 +102,29 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
             Assert.False(raw.Fields.ContainsKey("System.Title"));       // default column
             Assert.False(raw.Fields.ContainsKey("Custom.SystemInfo"));  // System Info
             Assert.False(raw.Fields.ContainsKey("System.Tags"));        // empty value dropped
+        }
+
+        [Fact]
+        public async Task A_401_during_run_surfaces_as_an_authentication_required_exception()
+        {
+            var (source, _) = Build(new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", "unauthorized", HttpStatusCode.Unauthorized));
+
+            var ex = await Assert.ThrowsAsync<TfsAuthenticationRequiredException>(() => source.GetAsync(1, CancellationToken.None));
+            Assert.False(ex.CredentialsWereSupplied); // no explicit sign-in was tried
+        }
+
+        [Fact]
+        public async Task A_401_after_an_explicit_sign_in_is_marked_as_rejected_credentials()
+        {
+            var store = new TfsCredentialStore();
+            store.Set("CORP\\jdoe", "wrong");
+            var (source, _) = Build(new StubHttpMessageHandler()
+                .Map("_apis/wit/fields", "unauthorized", HttpStatusCode.Unauthorized), credentials: store);
+
+            var ex = await Assert.ThrowsAsync<TfsAuthenticationRequiredException>(() => source.GetAsync(1, CancellationToken.None));
+            Assert.True(ex.CredentialsWereSupplied);
+            Assert.True(store.ExplicitCredentialsRejected);
         }
 
         [Fact]

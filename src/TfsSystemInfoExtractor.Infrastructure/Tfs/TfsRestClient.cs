@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -21,11 +22,13 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
 
         private readonly HttpClient _http;
         private readonly TfsOptions _options;
+        private readonly TfsCredentialStore _credentials;
 
-        public TfsRestClient(HttpClient http, IOptions<TfsOptions> options)
+        public TfsRestClient(HttpClient http, IOptions<TfsOptions> options, TfsCredentialStore credentials)
         {
             _http = http ?? throw new ArgumentNullException(nameof(http));
             _options = (options ?? throw new ArgumentNullException(nameof(options))).Value;
+            _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
         }
 
         /// <param name="collectionRelativePath">e.g. <c>_apis/wit/fields</c> or <c>_apis/wit/workitems/42</c>.</param>
@@ -53,6 +56,12 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
             using (response)
             {
                 var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    _credentials.MarkRejected();
+                    throw new TfsAuthenticationRequiredException(_credentials.HasExplicitCredentials);
+                }
+
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new TfsHttpException(response.StatusCode, url, body);

@@ -78,5 +78,18 @@ namespace TfsSystemInfoExtractor.Tests
             using var provider = BuildContainer();
             Assert.NotNull(provider.GetRequiredService<JsonExportFormatter>());
         }
+
+        [Fact]
+        public void The_sign_in_endpoint_and_the_shared_credential_store_resolve()
+        {
+            using var provider = BuildContainer();
+
+            var store = provider.GetRequiredService<TfsSystemInfoExtractor.Infrastructure.Tfs.TfsCredentialStore>();
+            var prompt = provider.GetRequiredService<TfsSystemInfoExtractor.Core.Abstractions.ITfsCredentialPrompt>();
+            Assert.Same(store, prompt); // the endpoint and the HTTP handler share one instance
+
+            var endpoints = provider.GetServices<TfsSystemInfoExtractor.Web.Http.IHttpEndpoint>();
+            Assert.Contains(endpoints, e => e.Matches("POST", "/api/tfs-credentials"));
+        }
     }
 }

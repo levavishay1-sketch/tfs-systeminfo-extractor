@@ -29,9 +29,11 @@ namespace TfsSystemInfoExtractor.Web.Endpoints
             var response = new StatusResponse(
                 done: job.IsDone,
                 processed: job.ProcessedCount,
-                error: job.Error,
+                error: job.AuthRequired ? null : job.Error,
                 log: job.LogSnapshot,
-                hasResult: job.Status == JobStatus.Completed && job.HasResult);
+                hasResult: job.Status == JobStatus.Completed && job.HasResult,
+                authRequired: job.AuthRequired,
+                credentialsRejected: job.CredentialsRejected);
 
             return ResponseWriter.WriteJsonAsync(context.Response, response, 200, cancellationToken);
         }

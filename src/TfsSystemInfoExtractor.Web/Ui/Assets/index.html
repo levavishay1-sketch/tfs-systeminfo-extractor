@@ -230,6 +230,23 @@
   .view-table .tv-sc-comp { flex:none; font-size:10.5px; font-weight:600; color:var(--si-text);
     background:var(--si-bg); border:1px solid var(--si-border); border-radius:5px; padding:0 6px; }
 
+  /* Azure DevOps sign-in dialog - shown only when RUN gets 401 */
+  .modal-backdrop { position:fixed; inset:0; z-index:100; padding:24px; display:flex;
+    align-items:center; justify-content:center; background:rgba(0,0,0,.45); }
+  .modal { width:min(420px,100%); background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:14px; padding:22px 24px;
+    box-shadow:0 20px 55px rgba(0,0,0,.35); display:flex; flex-direction:column; gap:12px; }
+  .modal h3 { margin:0; font-size:15px; }
+  .modal-sub { margin:0; font-size:12.5px; color:var(--muted); line-height:1.5; }
+  .modal label { display:flex; flex-direction:column; gap:4px; font-size:11.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .modal input { padding:9px 11px; border:1px solid var(--border); border-radius:8px;
+    background:var(--surface-2); color:var(--text); font:14px 'Segoe UI', system-ui, sans-serif; text-transform:none; }
+  .modal input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .modal-err { font-size:12px; color:var(--bad); background:rgba(220,38,38,.1);
+    border:1px solid var(--bad); border-radius:8px; padding:7px 10px; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+
 </style>
 </head>
 <body>
@@ -302,6 +319,25 @@
     <div class='viewport' id='viewport'></div>
   </section>
 </main>
+
+<div class='modal-backdrop' id='authModal' hidden>
+  <form class='modal' id='authForm' autocomplete='on'>
+    <h3>Sign in to Azure DevOps</h3>
+    <p class='modal-sub' id='authMsg'></p>
+    <label>Username
+      <input type='text' id='authUser' name='username' autocomplete='username' spellcheck='false' placeholder='DOMAIN\user'>
+    </label>
+    <label>Password
+      <input type='password' id='authPass' name='password' autocomplete='current-password'>
+    </label>
+    <div class='modal-err' id='authErr' hidden></div>
+    <div class='modal-actions'>
+      <button type='button' class='btn ghost' id='authCancel'>Cancel</button>
+      <button type='submit' class='btn primary' id='authSubmit'>Sign in &amp; retry</button>
+    </div>
+  </form>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
 let jobId = null, timer = null;
@@ -352,6 +388,14 @@ async function poll() {
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
   log.textContent = data.log.join('\n');
   if (atBottom) log.scrollTop = log.scrollHeight;
+
+  if (data.authRequired) {
+    // the run hit 401 - ask for a sign-in and retry, don't surface a raw error
+    clearInterval(timer);
+    showAuthDialog(!!data.credentialsRejected);
+    return;
+  }
+
   if (!data.done) { setStatus('running', data.processed + ' work items processed'); return; }
   clearInterval(timer);
   $('#runBtn').disabled = false;
@@ -365,6 +409,52 @@ function setStatus(kind, text) {
   el.className = 'status status-' + kind;
   el.textContent = text;
 }
+
+/* ---------- Azure DevOps sign-in (only shown when RUN gets 401) ---------- */
+const authModal = $('#authModal'), authForm = $('#authForm');
+function showAuthDialog(rejected) {
+  $('#authMsg').textContent = rejected
+    ? 'Azure DevOps did not accept that username or password. Please try again.'
+    : 'Azure DevOps returned "401 Unauthorized" - the saved credentials are no longer valid. Sign in to continue this run.';
+  $('#authErr').hidden = true;
+  authModal.hidden = false;
+  setStatus('running', 'Waiting for sign-in');
+  const u = $('#authUser'); (u.value ? $('#authPass') : u).focus();
+}
+function closeAuthDialog() {
+  authModal.hidden = true;
+  $('#authPass').value = '';
+}
+$('#authCancel').addEventListener('click', () => {
+  closeAuthDialog();
+  fail('Sign-in required to reach Azure DevOps.');
+});
+authForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const userName = $('#authUser').value.trim();
+  let password = $('#authPass').value;
+  const err = $('#authErr');
+  if (!userName || !password) { err.textContent = 'Enter a username and password.'; err.hidden = false; return; }
+  $('#authSubmit').disabled = true;
+  let resp;
+  try {
+    resp = await fetch('/api/tfs-credentials', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userName: userName, password: password })
+    });
+  } catch (ex) {
+    $('#authSubmit').disabled = false;
+    err.textContent = 'Could not reach the local server.'; err.hidden = false;
+    return;
+  } finally {
+    password = '';
+    $('#authPass').value = '';
+  }
+  $('#authSubmit').disabled = false;
+  if (!resp.ok) { err.textContent = 'Sign-in failed: ' + (await resp.text()); err.hidden = false; return; }
+  closeAuthDialog();
+  run();   // retry the same RUN with the new credentials - the IDs are still in the box
+});
 
 /* ---------- results ---------- */
 /* The table is the only result presentation. Filtering, the hierarchy, the
