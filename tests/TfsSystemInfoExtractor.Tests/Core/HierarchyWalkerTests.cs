@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Extraction;
 using TfsSystemInfoExtractor.Core.Model;
+using TfsSystemInfoExtractor.Core.Model.SourceControl;
 using TfsSystemInfoExtractor.Infrastructure.Text;
 using TfsSystemInfoExtractor.Tests.Fakes;
 using Xunit;
@@ -78,6 +79,20 @@ namespace TfsSystemInfoExtractor.Tests.Core
 
             Assert.Equal("Browser: Chrome\nOS: Windows", roots.Single().SystemInfo);
             Assert.True(roots.Single().HasSystemInfo);
+        }
+
+        [Fact]
+        public async Task Source_control_info_flows_from_the_source_onto_the_node()
+        {
+            var sc = new SourceControlInfo(
+                repositories: new[] { new SourceRepository("r1", "web") },
+                commits: new[] { new Commit("abc123", "fix", new Developer("dev")) },
+                contributors: new[] { new Developer("dev") });
+            var source = new FakeWorkItemSource().Add(1, sc);
+
+            var roots = await Walk(Build(source), 1);
+
+            Assert.Same(sc, roots.Single().SourceControl);
         }
 
         [Fact]

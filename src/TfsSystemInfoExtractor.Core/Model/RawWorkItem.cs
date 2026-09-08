@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TfsSystemInfoExtractor.Core.Model.SourceControl;
 
 namespace TfsSystemInfoExtractor.Core.Model
 {
@@ -16,7 +17,8 @@ namespace TfsSystemInfoExtractor.Core.Model
             string? state,
             string? webUrl,
             string? systemInfoHtml,
-            IReadOnlyList<int> childIds)
+            IReadOnlyList<int> childIds,
+            SourceControlInfo? sourceControl = null)
         {
             Id = id;
             Type = type;
@@ -25,6 +27,7 @@ namespace TfsSystemInfoExtractor.Core.Model
             WebUrl = webUrl;
             SystemInfoHtml = systemInfoHtml;
             ChildIds = childIds;
+            SourceControl = sourceControl;
         }
 
         public int Id { get; }
@@ -40,5 +43,8 @@ namespace TfsSystemInfoExtractor.Core.Model
         public string? SystemInfoHtml { get; }
 
         public IReadOnlyList<int> ChildIds { get; }
+
+        /// <summary>Source-control activity for the item, when the source provided it; otherwise null.</summary>
+        public SourceControlInfo? SourceControl { get; }
     }
 }

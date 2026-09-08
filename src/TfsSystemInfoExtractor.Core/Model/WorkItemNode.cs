@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using TfsSystemInfoExtractor.Core.Model.SourceControl;
 
 namespace TfsSystemInfoExtractor.Core.Model
 {
@@ -24,6 +25,12 @@ namespace TfsSystemInfoExtractor.Core.Model
 
         /// <summary>Populated when this item failed to load; the other fields are then meaningless.</summary>
         public string? Error { get; set; }
+
+        /// <summary>
+        /// Source-control activity linked to this work item (repositories, commits,
+        /// contributors). Null until a source-control provider populates it.
+        /// </summary>
+        public SourceControlInfo? SourceControl { get; set; }
 
         public List<WorkItemNode> Children { get; } = new List<WorkItemNode>();
 

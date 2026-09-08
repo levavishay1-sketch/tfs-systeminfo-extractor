@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Exceptions;
 using TfsSystemInfoExtractor.Core.Model;
+using TfsSystemInfoExtractor.Core.Model.SourceControl;
 
 namespace TfsSystemInfoExtractor.Tests.Fakes
 {
@@ -18,6 +19,12 @@ namespace TfsSystemInfoExtractor.Tests.Fakes
         public FakeWorkItemSource Add(int id, string? systemInfoHtml = null, params int[] childIds)
         {
             _items[id] = new RawWorkItem(id, "Task", $"Item {id}", "Active", $"http://tfs/{id}", systemInfoHtml, childIds);
+            return this;
+        }
+
+        public FakeWorkItemSource Add(int id, SourceControlInfo sourceControl, params int[] childIds)
+        {
+            _items[id] = new RawWorkItem(id, "Task", $"Item {id}", "Active", $"http://tfs/{id}", null, childIds, sourceControl);
             return this;
         }
 

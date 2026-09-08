@@ -99,7 +99,8 @@ namespace TfsSystemInfoExtractor.Core.Extraction
                 Title = raw.Title,
                 State = raw.State,
                 Url = raw.WebUrl,
-                SystemInfo = _htmlToText.Convert(raw.SystemInfoHtml)
+                SystemInfo = _htmlToText.Convert(raw.SystemInfoHtml),
+                SourceControl = raw.SourceControl
             };
 
             progress.Report(depth, node.HasSystemInfo ? "[System Info found]" : "[no System Info]");

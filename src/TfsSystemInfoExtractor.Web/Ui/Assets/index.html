@@ -12,7 +12,7 @@
     --accent:#4f46e5; --accent-2:#4338ca;
     --ok:#059669; --bad:#dc2626;
     --si-bg:#fffbeb; --si-border:#f5e2a8; --si-text:#6b4d10;
-    --tvline:#c4cbd6;
+    --tvline:#c4cbd6; --tv-root-bg:#eef1f6; --tv-rail:#c3c9d4; --tv-rail-strong:#4f46e5;
     --radius:12px; color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -22,7 +22,7 @@
       --accent:#6366f1; --accent-2:#a5b4fc;
       --ok:#34d399; --bad:#f87171;
       --si-bg:#241f10; --si-border:#4a3f22; --si-text:#ecdcab;
-      --tvline:#3a4150;
+      --tvline:#3a4150; --tv-root-bg:#1e222c; --tv-rail:#333a48; --tv-rail-strong:#6366f1;
       color-scheme: dark;
     }
   }
@@ -144,35 +144,46 @@
     text-transform:uppercase; letter-spacing:.4px; }
   .menu button small { color:var(--muted); font-size:11px; }
 
-  /* view: table (primary) */
+  /* view: table (primary) - grouped tree-table */
   .view-table .tv-wrap { width:100%; }
   .view-table table.tv { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
-  .view-table .tv col.c-id { width:64px; }
-  .view-table .tv col.c-type { width:110px; }
-  .view-table .tv col.c-state { width:92px; }
-  .view-table .tv col.c-title { width:32%; }
-  .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border);
-    vertical-align:top; overflow-wrap:anywhere; }
+  .view-table .tv col.c-id { width:66px; }
+  .view-table .tv col.c-type { width:104px; }
+  .view-table .tv col.c-state { width:90px; }
+  .view-table .tv col.c-title { width:34%; }
+  .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; vertical-align:top; overflow-wrap:anywhere; }
   .view-table .tv thead th { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
-    background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; }
-  .view-table .tv tbody tr:hover td { background:var(--surface-2); }
-  .view-table .tv tbody tr.err td { background:rgba(220,38,38,.05); }
+    background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; border-bottom:1px solid var(--border); }
   .view-table .tv .cell-id a { font-weight:600; }
   .view-table .tv .cell-state { color:var(--muted); }
+
+  /* one <tbody> per root work item = one visually distinct group */
+  .view-table .tv-grp > tr > td { border-bottom:1px solid var(--border); }
+  .view-table .tv-grp > tr:last-child > td { border-bottom:none; }
+  .view-table .tv-grp > tr:hover > td { background:var(--surface-2); }
+  .view-table .tv-grp > tr > .cell-id { border-left:3px solid var(--tv-rail); }
+  /* gap row between groups: whitespace separation, no borders */
+  .view-table .tv-gap td { height:16px; padding:0; border:none; background:var(--bg); }
+
+  .view-table .tv tr.tv-root > td { background:var(--tv-root-bg); padding-top:11px; padding-bottom:11px;
+    border-top:1px solid var(--tvline); }
+  .view-table .tv tr.tv-root > .cell-id { border-left-color:var(--tv-rail-strong); }
+  .view-table .tv tr.tv-root .nm { font-weight:700; }
+  .view-table .tv tr.err > td { background:rgba(220,38,38,.06); }
 
   .view-table .tv-title-inner { display:flex; align-items:flex-start; min-width:0; }
   .view-table .tv-guide { flex:none; width:18px; align-self:stretch; position:relative; }
   .view-table .tv-guide.line::before { content:''; position:absolute; left:9px; top:0; bottom:0;
-    border-left:1px solid var(--tvline); }
+    border-left:1.5px solid var(--tvline); }
   .view-table .tv-guide.elbow::after { content:''; position:absolute; left:9px; top:0; height:15px;
-    width:9px; border-left:1px solid var(--tvline); border-bottom:1px solid var(--tvline); border-bottom-left-radius:6px; }
+    width:9px; border-left:1.5px solid var(--tvline); border-bottom:1.5px solid var(--tvline); border-bottom-left-radius:6px; }
   .view-table .tv-toggle { flex:none; width:16px; height:16px; margin-right:4px; padding:0; border:none;
     background:none; cursor:pointer; position:relative; align-self:flex-start; margin-top:1px; }
   .view-table .tv-toggle::before { content:''; position:absolute; top:50%; left:50%; width:0; height:0;
     border-left:5px solid var(--muted); border-top:4px solid transparent; border-bottom:4px solid transparent;
     transform:translate(-50%,-50%); transition:transform .12s; }
   .view-table .tv-toggle.open::before { transform:translate(-50%,-50%) rotate(90deg); }
-  .view-table .tv-toggle.leaf::before { border:none; width:4px; height:4px; border-radius:50%; background:var(--border); }
+  .view-table .tv-toggle.leaf::before { border:none; width:4px; height:4px; border-radius:50%; background:var(--tvline); }
   .view-table .tv-name { min-width:0; }
   .view-table .tv-name .nm { word-break:break-word; }
   .view-table .tv-name .kids { display:inline-block; margin-left:6px; font-size:10.5px; font-weight:600;
@@ -192,28 +203,19 @@
     .view-table .tv, .view-table .tv thead, .view-table .tv tbody, .view-table .tv tr, .view-table .tv td { display:block; width:auto; }
     .view-table .tv thead { position:absolute; left:-9999px; }
     .view-table .tv colgroup { display:none; }
-    .view-table .tv tbody tr { border:1px solid var(--border); border-radius:10px; margin-bottom:10px; padding:8px 10px; }
-    .view-table .tv tbody tr.err { border-color:var(--bad); }
+    .view-table .tv-gap { display:none; }
+    .view-table .tv-grp { border:1px solid var(--border); border-left:3px solid var(--tv-rail); border-radius:10px;
+      margin-bottom:14px; overflow:hidden; }
+    .view-table .tv-grp > tr { padding:8px 10px; }
+    .view-table .tv-grp > tr + tr { border-top:1px solid var(--border); }
+    .view-table .tv tr.tv-root > td { border-top:none; }
     .view-table .tv td { border:none !important; padding:3px 0; }
     .view-table .tv td::before { content:attr(data-label) ':\A0'; font-weight:600; color:var(--muted); }
     .view-table .tv td.cell-title::before { content:''; }
+    .view-table .tv .cell-id { border-left:none; }
     .view-table .tv-guide { display:none; }
     .view-table .tv-parent { display:block; }
   }
-
-  /* view: detailed */
-  .view-detailed .drow { border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px;
-    background:var(--surface-2); }
-  .view-detailed .drow.err { border-color:var(--bad); }
-  .view-detailed .d-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
-  .view-detailed .d-head .d-title { font-size:15px; font-weight:650; }
-  .view-detailed dl { display:grid; grid-template-columns:130px 1fr; gap:6px 14px; margin:0 0 12px; font-size:13px; }
-  .view-detailed dt { color:var(--muted); font-weight:600; }
-  .view-detailed dd { margin:0; word-break:break-word; }
-  .view-detailed .d-si { position:relative; background:var(--si-bg); border:1px solid var(--si-border); color:var(--si-text);
-    border-radius:8px; padding:12px 40px 12px 14px; white-space:pre-wrap; word-break:break-word; font-size:13px; }
-  .view-detailed .d-si.err { background:rgba(220,38,38,.10); border-color:var(--bad); color:var(--bad); }
-  .view-detailed .d-si.none { color:var(--muted); font-style:italic; background:none; border-style:dashed; }
 
   /* view: outline */
   .view-outline .o-item { margin-bottom:16px; }
@@ -235,10 +237,8 @@
     font-size:14px; line-height:1.6; }
   .view-focus .f-copy { position:absolute; top:10px; right:12px; }
 
-  @media (max-width:640px) {
-    .view-detailed dl { grid-template-columns:1fr; }
-    .view-table td.t-si { display:none; }
-    .view-table th.h-si { display:none; }
+  @media (max-width:520px) {
+    .view-table .tv col.c-type, .view-table .tv col.c-state { width:auto; }
   }
 </style>
 </head>
@@ -365,8 +365,8 @@ function setStatus(kind, text) {
 }
 
 /* ---------- results + views ---------- */
-const VIEWS = ['compact', 'tree', 'table', 'detailed', 'outline', 'focus'];
-const LABELS = { compact:'Compact', tree:'Tree', table:'Table', detailed:'Detailed', outline:'Outline', focus:'Info Focus' };
+const VIEWS = ['compact', 'tree', 'table', 'outline', 'focus'];
+const LABELS = { compact:'Compact', tree:'Tree', table:'Table', outline:'Outline', focus:'Info Focus' };
 let currentView = 'table';
 try { const s = localStorage.getItem('tfsView'); if (s && VIEWS.indexOf(s) >= 0) currentView = s; } catch (e) {}
 let roots = null, flat = [], byId = {}, stats = null, collapsed = new Set();
@@ -385,9 +385,9 @@ function setView(v) {
   currentView = v;
   try { localStorage.setItem('tfsView', v); } catch (e) {}
   document.querySelectorAll('#viewSwitch .vbtn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
-  const isTree = v === 'tree';
-  $('#expandAll').hidden = !isTree;
-  $('#collapseAll').hidden = !isTree;
+  const collapsible = v === 'tree' || v === 'table';
+  $('#expandAll').hidden = !collapsible;
+  $('#collapseAll').hidden = !collapsible;
   if (roots) render();
 }
 
@@ -463,7 +463,7 @@ function render() {
   const vp = $('#viewport');
   vp.className = 'viewport view-' + currentView;
   vp.innerHTML = '';
-  const fn = { compact: vCompact, tree: vTree, table: vTable, detailed: vDetailed, outline: vOutline, focus: vFocus }[currentView];
+  const fn = { compact: vCompact, tree: vTree, table: vTable, outline: vOutline, focus: vFocus }[currentView];
   fn(vp);
 }
 
@@ -521,8 +521,14 @@ function treeNode(n) {
   }
   return node;
 }
-$('#expandAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open')));
-$('#collapseAll').addEventListener('click', () => document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open')));
+$('#expandAll').addEventListener('click', () => {
+  if (currentView === 'table') { collapsed.clear(); render(); }
+  else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open'));
+});
+$('#collapseAll').addEventListener('click', () => {
+  if (currentView === 'table') { flat.forEach(n => { if (n._kids) collapsed.add(n.Id); }); render(); }
+  else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open'));
+});
 
 /* table - primary view: tree-table with full System Info + responsive layout */
 function tableRows() { return flat; }
@@ -535,6 +541,11 @@ function hiddenByCollapse(n) {
   }
   return false;
 }
+function subtreeInOrder(root) {
+  const out = [];
+  (function rec(n) { out.push(n); (n.Children || []).forEach(rec); })(root);
+  return out;
+}
 function vTable(vp) {
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
@@ -546,14 +557,26 @@ function vTable(vp) {
   ['ID', 'Type', 'Title', 'State', 'System Info'].forEach(h => htr.appendChild(el('th', null, h)));
   thead.appendChild(htr);
   tbl.appendChild(thead);
-  const tb = el('tbody');
-  flat.forEach(n => { if (!hiddenByCollapse(n)) tb.appendChild(tableRow(n)); });
-  tbl.appendChild(tb);
+
+  // One <tbody> per root work item so each Work Item + its children reads as one group.
+  roots.forEach((root, gi) => {
+    if (gi > 0) {
+      const gap = el('tbody', 'tv-gap');
+      const gtr = el('tr'); const gtd = el('td'); gtd.colSpan = 5; gtr.appendChild(gtd); gap.appendChild(gtr);
+      tbl.appendChild(gap);
+    }
+    const group = el('tbody', 'tv-grp');
+    subtreeInOrder(root).forEach(n => {
+      if (!hiddenByCollapse(n)) group.appendChild(tableRow(n, n === root));
+    });
+    tbl.appendChild(group);
+  });
+
   wrap.appendChild(tbl);
   vp.appendChild(wrap);
 }
-function tableRow(n) {
-  const tr = el('tr', n.Error ? 'err' : null);
+function tableRow(n, isRoot) {
+  const tr = el('tr', (isRoot ? 'tv-root' : '') + (n.Error ? ' err' : ''));
 
   const cId = el('td', 'cell-id'); cId.dataset.label = 'ID'; cId.appendChild(widLink(n)); tr.appendChild(cId);
 
@@ -618,41 +641,7 @@ function tableRow(n) {
   return tr;
 }
 
-/* 5. detailed */
-function vDetailed(vp) {
-  flat.forEach(n => {
-    const d = el('div', 'drow' + (n.Error ? ' err' : ''));
-    const h = el('div', 'd-head');
-    h.appendChild(badge(n));
-    h.appendChild(widLink(n));
-    const t = el('span', 'd-title', n.Title || ''); t.dir = 'auto'; h.appendChild(t);
-    if (n.State) h.appendChild(el('span', 'state', n.State));
-    d.appendChild(h);
-
-    const dl = el('dl');
-    const add = (k, v, isLink) => {
-      dl.appendChild(el('dt', null, k));
-      if (isLink && v) { const dd = el('dd'); const a = el('a', null, v); a.href = v; a.target = '_blank'; a.rel = 'noopener'; dd.appendChild(a); dl.appendChild(dd); }
-      else dl.appendChild(el('dd', null, v || '-'));
-    };
-    add('Depth', String(n._depth));
-    add('Parent', n._parent != null ? ('#' + n._parent) : '(root)');
-    add('Type', n.Type);
-    add('State', n.State);
-    add('Children', String(n.Children ? n.Children.length : 0));
-    add('URL', n.Url, true);
-    d.appendChild(dl);
-
-    let si;
-    if (n.Error) si = el('div', 'd-si err', n.Error);
-    else if (hasInfo(n)) { si = el('div', 'd-si'); si.appendChild(copyBtn(n.SystemInfo)); const tx = el('div', 'sysinfo-text', n.SystemInfo); tx.dir = 'auto'; si.appendChild(tx); }
-    else si = el('div', 'd-si none', 'No System Info recorded on this work item.');
-    d.appendChild(si);
-    vp.appendChild(d);
-  });
-}
-
-/* 6. outline */
+/* outline */
 function vOutline(vp) {
   flat.forEach(n => {
     const item = el('div', 'o-item');

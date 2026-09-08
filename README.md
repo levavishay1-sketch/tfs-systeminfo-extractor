@@ -15,7 +15,8 @@ user); no PAT.
 ```
 src/
   TfsSystemInfoExtractor.Core            domain models + application services + ports
-      Model/            WorkItemNode, RawWorkItem, ExtractionResult, ExportArtifact, ...
+      Model/            WorkItemNode, RawWorkItem, ExtractionResult, ExportArtifact,
+                        SourceControl/ (SourceControlInfo, SourceRepository, Commit, Developer)
       Abstractions/     IWorkItemSource, ISystemInfoFieldResolver, IHtmlToText,
                         IProgressListener, IExportFormatter, IExtractionArtifactStore, ISystemClock
       Extraction/       WorkItemIdParser, HierarchyWalker, ExtractionService
@@ -81,9 +82,9 @@ src\TfsSystemInfoExtractor.App\bin\Release\net472\TfsSystemInfoExtractor.exe
 
 The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
 space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
-the live log, then browse the result (Table view by default, six views
-total) and use **Download / Export** (CSV / JSON / Markdown). The same files
-are written to the export folder.
+the live log, then browse the result (grouped Table view by default; also
+Compact, Tree, Outline, Info Focus) and use **Download / Export**
+(CSV / JSON / Markdown). The same files are written to the export folder.
 
 ## Behaviour / assumptions
 
