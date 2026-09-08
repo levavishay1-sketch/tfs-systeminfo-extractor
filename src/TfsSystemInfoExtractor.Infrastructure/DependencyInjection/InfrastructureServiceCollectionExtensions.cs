@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Infrastructure.Configuration;
+using TfsSystemInfoExtractor.Infrastructure.Export;
 using TfsSystemInfoExtractor.Infrastructure.Storage;
 using TfsSystemInfoExtractor.Infrastructure.Text;
 using TfsSystemInfoExtractor.Infrastructure.Tfs;
@@ -46,6 +47,11 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
             services.AddScoped<IWorkItemSource, TfsWorkItemSource>();
             services.AddSingleton<IHtmlToText, HtmlToPlainTextConverter>();
             services.AddSingleton<IExtractionArtifactStore, FileSystemArtifactStore>();
+
+            // Output adapter with a heavy third-party (PDF) dependency - kept out of Core,
+            // wired through the same IExportFormatter port as the built-in formatters.
+            services.AddSingleton<PdfReportDocumentBuilder>();
+            services.AddSingleton<IExportFormatter, PdfExportFormatter>();
 
             return services;
         }

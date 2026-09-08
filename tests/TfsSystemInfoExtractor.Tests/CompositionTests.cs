@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TfsSystemInfoExtractor.Core.DependencyInjection;
+using TfsSystemInfoExtractor.Core.Export;
 using TfsSystemInfoExtractor.Core.Extraction;
+using TfsSystemInfoExtractor.Core.Model;
 using TfsSystemInfoExtractor.Infrastructure.DependencyInjection;
 using TfsSystemInfoExtractor.Web.DependencyInjection;
 using TfsSystemInfoExtractor.Web.Hosting;
@@ -52,6 +54,21 @@ namespace TfsSystemInfoExtractor.Tests
             using var provider = BuildContainer();
             using var scope = provider.CreateScope();
             Assert.NotNull(scope.ServiceProvider.GetRequiredService<ExtractionService>());
+        }
+
+        [Fact]
+        public void Every_export_format_including_pdf_is_wired_through_the_selector()
+        {
+            using var provider = BuildContainer();
+            var selector = provider.GetRequiredService<ExportFormatterSelector>();
+
+            foreach (var token in new[] { "csv", "json", "md", "pdf" })
+            {
+                Assert.True(selector.TryResolve(token, out _), $"'{token}' did not resolve");
+            }
+
+            Assert.True(selector.TryResolve("pdf", out var pdf));
+            Assert.Equal(ExportFormat.Pdf, pdf.Format);
         }
     }
 }

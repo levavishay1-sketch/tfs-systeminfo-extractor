@@ -25,6 +25,7 @@ src/
   TfsSystemInfoExtractor.Infrastructure  adapters
       Tfs/              TfsRestClient, TfsWorkItemSource, TfsSystemInfoFieldResolver, TfsResponseMapper
       Text/             HtmlToPlainTextConverter
+      Export/           PdfExportFormatter, PdfReportDocumentBuilder  (IExportFormatter with a PDF dependency)
       Storage/          FileSystemArtifactStore
       Configuration/    TfsOptions, ExportOptions, TfsOptionsValidator
   TfsSystemInfoExtractor.Web             presentation
@@ -84,7 +85,14 @@ The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
 space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
 the live log, then browse the result (grouped Table view by default; also
 Compact, Tree, Outline, Info Focus) and use **Download / Export**
-(CSV / JSON / Markdown). The same files are written to the export folder.
+(CSV, PDF release report, JSON, Markdown). The same files are written to
+the export folder.
+
+Every export format is an `IExportFormatter` (Core port). Pure formatters
+(JSON / Markdown / CSV) live in Core; the PDF formatter lives in
+Infrastructure because it carries a third-party dependency (PDFsharp /
+MigraDoc). Adding a format = one new `IExportFormatter` + one DI line;
+no Core logic changes.
 
 ## Behaviour / assumptions
 

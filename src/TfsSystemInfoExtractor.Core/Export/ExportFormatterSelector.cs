@@ -20,7 +20,8 @@ namespace TfsSystemInfoExtractor.Core.Export
                 ["json"] = ExportFormat.Json,
                 ["md"] = ExportFormat.Markdown,
                 ["markdown"] = ExportFormat.Markdown,
-                ["csv"] = ExportFormat.Csv
+                ["csv"] = ExportFormat.Csv,
+                ["pdf"] = ExportFormat.Pdf
             };
 
         public ExportFormatterSelector(IEnumerable<IExportFormatter> formatters)
