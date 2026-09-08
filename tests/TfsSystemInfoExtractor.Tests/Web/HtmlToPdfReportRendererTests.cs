@@ -52,6 +52,30 @@ namespace TfsSystemInfoExtractor.Tests.Web
         }
 
         [Fact]
+        public void Injects_the_captured_theme_tokens_so_the_pdf_matches_the_users_appearance()
+        {
+            var engine = new FakePdfEngine();
+            var view = ReportViewBuilder.Sample();
+            view.ThemeCss = ":root{--bg:#0e1014;--text:#e6e8ec;--tv-root-bg:#1e222c;}";
+
+            New(engine).Render(view);
+
+            Assert.Contains(":root{--bg:#0e1014;--text:#e6e8ec;--tv-root-bg:#1e222c;}", engine.LastHtml!);
+        }
+
+        [Fact]
+        public void Theme_tokens_cannot_break_out_of_the_style_element()
+        {
+            var engine = new FakePdfEngine();
+            var view = ReportViewBuilder.Sample();
+            view.ThemeCss = ":root{--x:red}</style><script>alert(1)</script>";
+
+            New(engine).Render(view);
+
+            Assert.DoesNotContain("<script>alert(1)</script>", engine.LastHtml!);
+        }
+
+        [Fact]
         public void Strips_any_script_from_the_supplied_html()
         {
             var engine = new FakePdfEngine();

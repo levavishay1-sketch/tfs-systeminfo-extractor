@@ -30,6 +30,13 @@ namespace TfsSystemInfoExtractor.Core.Reporting
         /// </summary>
         public string? Html { get; set; }
 
+        /// <summary>
+        /// The theme tokens resolved on the live page (a <c>:root{ --bg:...; ... }</c>
+        /// block), so an HTML-based renderer reproduces the user's current light/dark
+        /// appearance exactly rather than whatever the headless browser defaults to.
+        /// </summary>
+        public string? ThemeCss { get; set; }
+
         public void Validate()
         {
             if (Columns.Count == 0)

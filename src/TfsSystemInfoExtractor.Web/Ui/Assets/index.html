@@ -177,12 +177,7 @@
   /* view: table (primary) - grouped tree-table */
   .view-table .tv-wrap { width:100%; overflow-x:auto; }
   .view-table table.tv { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
-  .view-table .tv col.c-id { width:56px; }
-  .view-table .tv col.c-type { width:230px; }
-  .view-table .tv col.c-state { width:84px; }
-  .view-table .tv col.c-title { width:300px; }
-  .view-table .tv col.c-si { width:360px; }
-  .view-table .tv col.c-extra { width:160px; }
+  /* column widths are set as percentages inline by vTable() so they hold on screen and in print */
   .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; vertical-align:top; overflow-wrap:anywhere; }
   .view-table .tv thead th { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
     background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; border-bottom:1px solid var(--border); }
@@ -273,9 +268,6 @@
     font-size:14px; line-height:1.6; }
   .view-focus .f-copy { position:absolute; top:10px; right:12px; }
 
-  @media (max-width:520px) {
-    .view-table .tv col.c-type, .view-table .tv col.c-state { width:auto; }
-  }
 </style>
 </head>
 <body>
@@ -652,12 +644,22 @@ function vTable(vp, infoFilter) {
   const rows = visibleTableRows(infoFilter);
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
-  // keep System Info readable: force horizontal scroll rather than squeezing columns
-  tbl.style.minWidth = (56 + 230 + 300 + 84 + 360 + extraFields.length * 160) + 'px';
+
+  // Column widths as percentages of the design total, so proportions are preserved
+  // whether the table fills the viewport, scrolls horizontally (min-width), or is
+  // printed to a page (no scroll). The px minimum keeps System Info readable on screen.
+  const widths = [56, 230, 300, 84, 360].concat(extraFields.map(() => 160));
+  const total = widths.reduce((a, b) => a + b, 0);
+  tbl.style.minWidth = total + 'px';
 
   const cg = document.createElement('colgroup');
-  ['c-id', 'c-type', 'c-title', 'c-state', 'c-si'].forEach(c => { const col = document.createElement('col'); col.className = c; cg.appendChild(col); });
-  extraFields.forEach(() => { const col = document.createElement('col'); col.className = 'c-extra'; cg.appendChild(col); });
+  const classes = ['c-id', 'c-type', 'c-title', 'c-state', 'c-si'].concat(extraFields.map(() => 'c-extra'));
+  classes.forEach((cls, i) => {
+    const col = document.createElement('col');
+    col.className = cls;
+    col.style.width = (widths[i] / total * 100).toFixed(3) + '%';
+    cg.appendChild(col);
+  });
   tbl.appendChild(cg);
 
   const thead = el('thead');
@@ -931,6 +933,18 @@ function cellText(n, key) {
   return '';
 }
 
+// The exact theme tokens resolved on the live page, so an HTML export reproduces
+// the user's current light/dark appearance rather than the headless default.
+function currentThemeCss() {
+  const cs = getComputedStyle(document.documentElement);
+  let vars = '';
+  for (let i = 0; i < cs.length; i++) {
+    const p = cs[i];
+    if (p.slice(0, 2) === '--') vars += p + ':' + cs.getPropertyValue(p).trim() + ';';
+  }
+  return vars ? (':root{' + vars + '}') : '';
+}
+
 // The report view = exactly what the Table view is showing (optionally with the
 // System-Info-only filter forced on for the "PDF System Info" action).
 function buildReportView(infoOnly) {
@@ -943,10 +957,17 @@ function buildReportView(infoOnly) {
     return { depth: r.depth, groupStart: r.depth === 0, error: !!r.n.Error, cells: cells };
   });
 
-  // The literal rendered table, for the HTML-based (PDF) renderer.
-  const holder = document.createElement('div');
-  holder.className = 'viewport view-table';
-  vTable(holder, effectiveFilter);
+  // The literal rendered table, for the HTML-based (PDF) renderer. When the export
+  // filter matches the on-screen filter this is byte-for-byte the current #viewport.
+  let html;
+  if (effectiveFilter === filterWithInfo && currentView === 'table') {
+    html = $('#viewport').innerHTML;
+  } else {
+    const holder = document.createElement('div');
+    holder.className = 'viewport view-table';
+    vTable(holder, effectiveFilter);
+    html = holder.innerHTML;
+  }
 
   return {
     title: 'TFS System Info',
@@ -954,7 +975,8 @@ function buildReportView(infoOnly) {
     generatedAt: resultGeneratedAt ? resultGeneratedAt.replace('T', ' ') : '',
     columns: cols,
     rows: rows,
-    html: holder.innerHTML
+    html: html,
+    themeCss: currentThemeCss()
   };
 }
 
