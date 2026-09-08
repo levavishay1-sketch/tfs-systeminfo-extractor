@@ -89,15 +89,17 @@ src\TfsSystemInfoExtractor.App\bin\Release\net472\TfsSystemInfoExtractor.exe
 
 The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
 space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
-the live log, then browse the result (grouped Table view by default; also
-Compact, Tree, Outline, Info Focus).
+the live log, then browse the result. The result is shown as a single grouped
+table (one `<tbody>` per root Work Item, hierarchy in the Type column). It
+scrolls horizontally when it is wider than the viewport and collapses to a
+stacked card layout on narrow screens, so it stays readable with any number
+of extra columns.
 
-In the Table view the **with info** count is a toggle that filters to only
-the Work Items that have System Info, and **Fields** lets advanced users add
-extra columns for any additional TFS field found on the extracted items (the
-list comes from the TFS field catalogue, `_apis/wit/fields`; selections
-persist per browser). The default columns and layout are unchanged; the
-hierarchy is shown in the Type column.
+The **with info** count is a toggle that filters to only the Work Items that
+have System Info, and **Fields** lets advanced users add extra columns for
+any additional TFS field found on the extracted items (the list comes from
+the TFS field catalogue, `_apis/wit/fields`; selections persist per browser).
+The default columns are unchanged; the hierarchy is shown in the Type column.
 
 ## Export
 

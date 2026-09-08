@@ -49,7 +49,7 @@
   textarea { width:100%; min-height:96px; resize:vertical; padding:12px 14px; border:1px solid var(--border);
     border-radius:10px; background:var(--surface-2); color:var(--text);
     font:13px/1.5 'Cascadia Code', Consolas, monospace; }
-  textarea:focus, .btn:focus-visible, .vbtn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  textarea:focus, .btn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
   .actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; align-items:center; }
   .btn { border:1px solid transparent; border-radius:9px; padding:9px 18px; font:inherit;
     font-weight:600; cursor:pointer; transition:background .12s, border-color .12s, opacity .12s; }
@@ -76,12 +76,6 @@
 
   /* results toolbar */
   .results-top { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
-  .switch { display:flex; gap:4px; flex-wrap:wrap; background:var(--surface-2); border:1px solid var(--border);
-    border-radius:10px; padding:4px; }
-  .vbtn { border:none; background:none; color:var(--muted); font:inherit; font-weight:600; font-size:12.5px;
-    padding:6px 12px; border-radius:7px; cursor:pointer; }
-  .vbtn:hover { color:var(--text); }
-  .vbtn.active { background:var(--surface); color:var(--accent-2); box-shadow:0 1px 2px rgba(0,0,0,.08); }
   .bar2 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .stats { display:flex; gap:6px; flex-wrap:wrap; margin-right:auto; }
   .stat { font-size:12px; color:var(--muted); background:var(--surface-2); border:1px solid var(--border);
@@ -97,43 +91,7 @@
   .wid:hover { text-decoration:underline; }
   .state { font-size:11px; color:var(--muted); border:1px solid var(--border); padding:1px 7px;
     border-radius:999px; white-space:nowrap; flex:none; }
-  .sysinfo-text { white-space:pre-wrap; word-break:break-word; }
   .empty { color:var(--muted); font-style:italic; padding:20px; text-align:center; }
-
-  /* view: compact */
-  .view-compact .crow { display:flex; align-items:center; gap:8px; padding:3px 8px; border-radius:6px;
-    font-size:12.5px; min-height:24px; }
-  .view-compact .crow:hover { background:var(--surface-2); }
-  .view-compact .dot { width:8px; height:8px; border-radius:50%; flex:none; }
-  .view-compact .cid { color:var(--accent-2); font-weight:600; flex:none; }
-  .view-compact .ctitle { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
-  .view-compact .cflag { flex:none; font-size:10px; font-weight:700; width:15px; height:15px; border-radius:4px;
-    display:grid; place-items:center; }
-  .view-compact .cflag.ok { background:rgba(5,150,105,.16); color:var(--ok); }
-  .view-compact .cflag.err { background:rgba(220,38,38,.16); color:var(--bad); }
-
-  /* view: tree */
-  .view-tree .node-head { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; }
-  .view-tree .node.has-kids > .node-head { cursor:pointer; }
-  .view-tree .node-head:hover { background:var(--surface-2); }
-  .view-tree .twist { flex:none; width:14px; height:14px; padding:0; border:none; background:none;
-    cursor:pointer; position:relative; }
-  .view-tree .node.has-kids > .node-head > .twist::before { content:''; position:absolute; top:50%; left:50%;
-    width:0; height:0; border-left:5px solid var(--muted); border-top:4px solid transparent;
-    border-bottom:4px solid transparent; transform:translate(-50%,-50%); transition:transform .12s; }
-  .view-tree .node.has-kids.open > .node-head > .twist::before { transform:translate(-50%,-50%) rotate(90deg); }
-  .view-tree .ntitle { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .view-tree .kidcount { font-size:11px; font-weight:600; color:var(--muted); background:var(--surface-2);
-    border:1px solid var(--border); min-width:20px; text-align:center; border-radius:999px; padding:1px 5px; flex:none; }
-  .view-tree .node-body { padding-left:22px; margin-left:7px; border-left:1px solid var(--border); }
-  .view-tree .node.has-kids:not(.open) > .node-body { display:none; }
-  .view-tree .sysinfo { position:relative; background:var(--si-bg); border:1px solid var(--si-border);
-    color:var(--si-text); border-radius:8px; padding:10px 40px 10px 12px; margin:4px 0 8px; font-size:13px; }
-  .view-tree .sysinfo.err { background:rgba(220,38,38,.10); border-color:var(--bad); color:var(--bad); }
-  .view-tree .noinfo { font-size:12px; color:var(--muted); font-style:italic; margin:2px 0 6px; }
-  .copy { position:absolute; top:6px; right:8px; font-size:11px; font-weight:600; border:1px solid var(--si-border);
-    background:var(--surface); color:var(--muted); border-radius:6px; padding:2px 8px; cursor:pointer; }
-  .copy:hover { color:var(--text); }
 
   /* export menu */
   .exportwrap { position:relative; }
@@ -174,10 +132,15 @@
     line-height:1; padding:0 4px; border-radius:999px; }
   .fieldchip button:hover { color:var(--bad); }
 
-  /* view: table (primary) - grouped tree-table */
-  .view-table .tv-wrap { width:100%; overflow-x:auto; }
+  /* results table - grouped tree-table (the only result presentation) */
+  /* the wrapper owns the horizontal scroll: whatever the table's width, it never
+     pushes the card or the page wider than the viewport. */
+  .view-table .tv-wrap { width:100%; max-width:100%; overflow-x:auto; overflow-y:hidden;
+    overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
   .view-table table.tv { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
-  /* column widths are set as percentages inline by vTable() so they hold on screen and in print */
+  /* vTable() sets an inline min-width (sum of the per-column design widths) and inline
+     <col> widths, so default columns stay readable and extra columns scroll into view
+     instead of being squeezed. */
   .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; vertical-align:top; overflow-wrap:anywhere; }
   .view-table .tv thead th { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
     background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; border-bottom:1px solid var(--border); }
@@ -230,8 +193,14 @@
     background:none; border:none; padding:0; cursor:pointer; }
   .view-table .tv-si .none { color:var(--muted); font-style:italic; }
 
-  /* screen-only: never collapse the real table when printing / exporting to PDF */
+  /* Narrow screens: drop the columnar layout and stack each row as a labelled card so
+     the table stays usable on a phone / split window. Screen-only, so print and the
+     PDF export always keep the real <table>. The inline min-width from vTable() is
+     cleared here so the stacked cards wrap to the viewport no matter how many extra
+     fields are selected. */
   @media screen and (max-width:760px) {
+    .view-table .tv-wrap { overflow-x:visible; }
+    .view-table table.tv { min-width:0 !important; width:100% !important; }
     .view-table .tv, .view-table .tv thead, .view-table .tv tbody, .view-table .tv tr, .view-table .tv td { display:block; width:auto; }
     .view-table .tv thead { position:absolute; left:-9999px; }
     .view-table .tv colgroup { display:none; }
@@ -248,26 +217,6 @@
     .view-table .tv-guide { display:none; }
     .view-table .tv-parent { display:block; }
   }
-
-  /* view: outline */
-  .view-outline .o-item { margin-bottom:16px; }
-  .view-outline .o-h { font-weight:650; }
-  .view-outline .o-h a { text-decoration:none; }
-  .view-outline .o-meta { font-size:11.5px; color:var(--muted); margin:2px 0 6px; }
-  .view-outline .o-si { white-space:pre-wrap; word-break:break-word; font-size:13px; padding-left:2px;
-    border-left:2px solid var(--si-border); padding-left:12px; }
-  .view-outline .o-si.err { border-color:var(--bad); color:var(--bad); }
-  .view-outline .o-si.none { color:var(--muted); font-style:italic; border-color:var(--border); }
-
-  /* view: focus */
-  .view-focus .f-item { border:1px solid var(--si-border); border-radius:10px; margin-bottom:14px; overflow:hidden; }
-  .view-focus .f-head { background:var(--si-bg); padding:10px 14px; display:flex; align-items:center; gap:10px;
-    flex-wrap:wrap; border-bottom:1px solid var(--si-border); }
-  .view-focus .f-title { font-weight:650; color:var(--si-text); }
-  .view-focus .f-path { font-size:11px; color:var(--muted); width:100%; }
-  .view-focus .f-si { position:relative; padding:14px 44px 14px 16px; white-space:pre-wrap; word-break:break-word;
-    font-size:14px; line-height:1.6; }
-  .view-focus .f-copy { position:absolute; top:10px; right:12px; }
 
 </style>
 </head>
@@ -306,7 +255,6 @@
   <section class='card' id='resultsCard' hidden>
     <div class='card-head'><h2>Results</h2></div>
     <div class='results-top'>
-      <div class='switch' id='viewSwitch'></div>
       <div class='bar2'>
         <div class='stats'>
           <span class='stat'><b id='statTotal'>0</b> items</span>
@@ -316,6 +264,8 @@
         </div>
         <button class='btn ghost sm' id='expandAll' type='button' hidden>Expand all</button>
         <button class='btn ghost sm' id='collapseAll' type='button' hidden>Collapse all</button>
+        <!-- expand/collapse operate on the table hierarchy; shown only when there is one -->
+
         <span class='exportwrap' id='fieldsWrap' hidden>
           <button class='btn ghost sm' id='fieldsBtn' type='button'>Fields</button>
           <div class='fieldpanel' id='fieldPanel' hidden></div>
@@ -323,8 +273,8 @@
         <span class='exportwrap'>
           <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
           <div class='menu' id='exportMenu' hidden>
-            <button type='button' data-fmt='xlsx'>Excel <small>(current view)</small><span class='tag'>default</span></button>
-            <button type='button' data-fmt='pdf'>PDF <small>(current view)</small></button>
+            <button type='button' data-fmt='xlsx'>Excel <small>(current table)</small><span class='tag'>default</span></button>
+            <button type='button' data-fmt='pdf'>PDF <small>(current table)</small></button>
             <button type='button' data-fmt='pdf-info'>PDF System Info <small>(only items with System Info)</small></button>
             <button type='button' data-fmt='json'>JSON <small>(raw data)</small></button>
             <button type='button' data-fmt='md'>Markdown</button>
@@ -404,36 +354,10 @@ function setStatus(kind, text) {
   el.textContent = text;
 }
 
-/* ---------- results + views ---------- */
-const VIEWS = ['compact', 'tree', 'table', 'outline', 'focus'];
-const LABELS = { compact:'Compact', tree:'Tree', table:'Table', outline:'Outline', focus:'Info Focus' };
-let currentView = 'table';
-try { const s = localStorage.getItem('tfsView'); if (s && VIEWS.indexOf(s) >= 0) currentView = s; } catch (e) {}
+/* ---------- results ---------- */
+/* The table is the only result presentation. Filtering, the hierarchy, the
+   optional extra-field columns and the exports all build on it. */
 let roots = null, flat = [], byId = {}, stats = null, collapsed = new Set();
-
-const sw = $('#viewSwitch');
-VIEWS.forEach(v => {
-  const b = document.createElement('button');
-  b.className = 'vbtn';
-  b.type = 'button';
-  b.dataset.view = v;
-  b.textContent = LABELS[v];
-  b.addEventListener('click', () => setView(v));
-  sw.appendChild(b);
-});
-function setView(v) {
-  currentView = v;
-  try { localStorage.setItem('tfsView', v); } catch (e) {}
-  document.querySelectorAll('#viewSwitch .vbtn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
-  const collapsible = v === 'tree' || v === 'table';
-  $('#expandAll').hidden = !collapsible;
-  $('#collapseAll').hidden = !collapsible;
-  $('#fieldsWrap').hidden = v !== 'table';
-  if (v !== 'table') filterWithInfo = false;
-  if (typeof updateFilterUi === 'function') updateFilterUi();
-  if (typeof renderFieldChips === 'function') renderFieldChips();
-  if (roots) render();
-}
 
 async function loadResults() {
   const r = await fetch('/api/result?jobId=' + jobId);
@@ -475,8 +399,11 @@ async function loadResults() {
   $('#filterInfoBtn').disabled = stats.withInfo === 0;
 
   renderFieldPanel();
+  $('#fieldsWrap').hidden = availableFields.length === 0;
+  $('#expandAll').hidden = $('#collapseAll').hidden = stats.depth === 0;
   updateFilterUi();
-  setView(currentView);
+  renderFieldChips();
+  render();
 }
 
 function hasInfo(n) { return !n.Error && n.SystemInfo != null && String(n.SystemInfo).trim() !== ''; }
@@ -493,100 +420,21 @@ function widLink(n, cls) {
   if (n.Url) { a.href = n.Url; a.target = '_blank'; a.rel = 'noopener'; }
   return a;
 }
-function copyBtn(text, cls) {
-  const b = el('button', (cls || 'copy'), 'Copy');
-  b.type = 'button';
-  b.addEventListener('click', ev => {
-    ev.stopPropagation();
-    if (navigator.clipboard) navigator.clipboard.writeText(text);
-    b.textContent = 'Copied';
-    setTimeout(() => { b.textContent = 'Copy'; }, 1200);
-  });
-  return b;
-}
-function pathOf(n) {
-  const parts = [];
-  let cur = byId[n._parent];
-  let guard = 0;
-  while (cur && guard++ < 50) { parts.unshift('#' + cur.Id + ' ' + (cur.Title || '')); cur = byId[cur._parent]; }
-  return parts.join('  >  ');
-}
 
 function render() {
   const vp = $('#viewport');
-  vp.className = 'viewport view-' + currentView;
+  vp.className = 'viewport view-table';
   vp.innerHTML = '';
-  const fn = { compact: vCompact, tree: vTree, table: vTable, outline: vOutline, focus: vFocus }[currentView];
-  fn(vp);
+  vTable(vp);
 }
 
-/* 1. compact */
-function vCompact(vp) {
-  flat.forEach(n => {
-    const row = el('div', 'crow');
-    row.style.paddingLeft = (8 + n._depth * 16) + 'px';
-    const d = el('span', 'dot');
-    d.style.background = 'hsl(' + hue(n.Type) + ' 60% 55%)';
-    row.appendChild(d);
-    row.appendChild(el('span', 'cid', '#' + n.Id));
-    const t = el('span', 'ctitle', n.Title || '(untitled)');
-    t.dir = 'auto';
-    t.title = n.Type + ' - ' + (n.State || '');
-    row.appendChild(t);
-    if (n.Error) row.appendChild(el('span', 'cflag err', '!'));
-    else if (hasInfo(n)) row.appendChild(el('span', 'cflag ok', 'i'));
-    vp.appendChild(row);
-  });
-}
-
-/* 2. tree */
-function vTree(vp) { roots.forEach(n => vp.appendChild(treeNode(n))); }
-function treeNode(n) {
-  const hasKids = !!(n.Children && n.Children.length);
-  const node = el('div', 'node' + (hasKids ? ' has-kids' : ''));
-  const head = el('div', 'node-head');
-  const tw = el('button', 'twist'); tw.type = 'button'; tw.style.visibility = hasKids ? 'visible' : 'hidden';
-  head.appendChild(tw);
-  head.appendChild(badge(n));
-  head.appendChild(widLink(n));
-  const t = el('span', 'ntitle', n.Title || ''); t.dir = 'auto'; head.appendChild(t);
-  if (n.State) head.appendChild(el('span', 'state', n.State));
-  if (hasKids) head.appendChild(el('span', 'kidcount', n.Children.length));
-  node.appendChild(head);
-
-  const body = el('div', 'node-body');
-  if (n.Error) {
-    const e = el('div', 'sysinfo err'); e.appendChild(el('div', 'sysinfo-text', n.Error)); body.appendChild(e);
-  } else if (hasInfo(n)) {
-    const w = el('div', 'sysinfo');
-    w.appendChild(copyBtn(n.SystemInfo));
-    const tx = el('div', 'sysinfo-text', n.SystemInfo); tx.dir = 'auto';
-    w.appendChild(tx); body.appendChild(w);
-  } else {
-    body.appendChild(el('div', 'noinfo', 'No System Info'));
-  }
-  if (hasKids) { const k = el('div'); n.Children.forEach(c => k.appendChild(treeNode(c))); body.appendChild(k); }
-  node.appendChild(body);
-
-  if (hasKids) {
-    head.addEventListener('click', e => { if (!e.target.closest('a')) node.classList.toggle('open'); });
-    if (n._depth < 1) node.classList.add('open');
-  }
-  return node;
-}
-$('#expandAll').addEventListener('click', () => {
-  if (currentView === 'table') { collapsed.clear(); render(); }
-  else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open'));
-});
+$('#expandAll').addEventListener('click', () => { collapsed.clear(); render(); });
 $('#collapseAll').addEventListener('click', () => {
-  if (currentView === 'table') {
-    (function rec(nodes) { nodes.forEach(rn => { if (rn.children.length) { collapsed.add(rn.n.Id); rec(rn.children); } }); })(tableForest(filterWithInfo));
-    render();
-  }
-  else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open'));
+  (function rec(nodes) { nodes.forEach(rn => { if (rn.children.length) { collapsed.add(rn.n.Id); rec(rn.children); } }); })(tableForest(filterWithInfo));
+  render();
 });
 
-/* table - primary view: grouped tree-table, "with info" filter, optional extra columns */
+/* the results table: grouped tree-table, "with info" filter, optional extra columns */
 let filterWithInfo = false;
 let resultGeneratedAt = '';
 let availableFields = [];   // [{ ReferenceName, DisplayName }]
@@ -646,10 +494,15 @@ function vTable(vp, infoFilter) {
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
 
-  // Column widths as percentages of the design total, so proportions are preserved
-  // whether the table fills the viewport, scrolls horizontally (min-width), or is
-  // printed to a page (no scroll). The px minimum keeps System Info readable on screen.
-  const widths = [56, 230, 300, 84, 360].concat(extraFields.map(() => 160));
+  // Each column has a design width in px: the 5 default columns plus one per selected
+  // extra field. Their sum is the table's min-width, so when it exceeds the viewport
+  // the wrapper scrolls horizontally and every column keeps a readable size instead of
+  // being squeezed. The widths are emitted as percentages of that sum so the same
+  // proportions hold whether the table is scrolling (renders at min-width = the sum),
+  // filling a wider viewport (width:100%, columns scale up), or printed to a page.
+  const DEFAULT_WIDTHS = [54, 220, 260, 82, 300];   // ID, Type, Title, State, System Info
+  const EXTRA_WIDTH = 150;                          // per additional TFS field
+  const widths = DEFAULT_WIDTHS.concat(extraFields.map(() => EXTRA_WIDTH));
   const total = widths.reduce((a, b) => a + b, 0);
   tbl.style.minWidth = total + 'px';
 
@@ -787,17 +640,16 @@ function tableRow(r) {
 /* filter: "with info" */
 $('#filterInfoBtn').addEventListener('click', () => {
   filterWithInfo = !filterWithInfo;
-  if (filterWithInfo && currentView !== 'table') { setView('table'); }
-  else if (currentView === 'table') { render(); }
+  render();
   updateFilterUi();
 });
 $('#clearFilterBtn').addEventListener('click', () => {
   filterWithInfo = false;
   updateFilterUi();
-  if (currentView === 'table') render();
+  render();
 });
 function updateFilterUi() {
-  const on = filterWithInfo && currentView === 'table';
+  const on = filterWithInfo;
   const btn = $('#filterInfoBtn');
   btn.classList.toggle('active', on);
   btn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -826,7 +678,7 @@ function renderFieldPanel() {
       else { extraFields = extraFields.filter(x => x !== f.ReferenceName); }
       saveExtraFields();
       renderFieldChips();
-      if (currentView === 'table') render();
+      render();
     });
     label.appendChild(cb);
     label.appendChild(document.createTextNode(f.DisplayName));
@@ -836,7 +688,7 @@ function renderFieldPanel() {
 function renderFieldChips() {
   const wrap = $('#fieldChips');
   wrap.innerHTML = '';
-  const show = extraFields.length > 0 && currentView === 'table';
+  const show = extraFields.length > 0;
   wrap.hidden = !show;
   if (!show) return;
   extraFields.forEach(ref => {
@@ -848,53 +700,10 @@ function renderFieldChips() {
       saveExtraFields();
       renderFieldPanel();
       renderFieldChips();
-      if (currentView === 'table') render();
+      render();
     });
     chip.appendChild(x);
     wrap.appendChild(chip);
-  });
-}
-
-/* outline */
-function vOutline(vp) {
-  flat.forEach(n => {
-    const item = el('div', 'o-item');
-    item.style.marginLeft = (n._depth * 18) + 'px';
-    const lvl = Math.min(n._depth + 2, 6);
-    const h = el('h' + lvl, 'o-h');
-    h.appendChild(widLink(n));
-    h.appendChild(document.createTextNode(' ' + (n.Title || '')));
-    item.appendChild(h);
-    item.appendChild(el('div', 'o-meta', (n.Type || '?') + (n.State ? (' - ' + n.State) : '')));
-    let si;
-    if (n.Error) si = el('div', 'o-si err', n.Error);
-    else if (hasInfo(n)) { si = el('div', 'o-si'); si.dir = 'auto'; si.textContent = n.SystemInfo; }
-    else si = el('div', 'o-si none', '(no system info)');
-    item.appendChild(si);
-    vp.appendChild(item);
-  });
-}
-
-/* 7. focus */
-function vFocus(vp) {
-  const items = flat.filter(hasInfo);
-  if (!items.length) { vp.appendChild(el('div', 'empty', 'No work items had a System Info value.')); return; }
-  items.forEach(n => {
-    const box = el('div', 'f-item');
-    const h = el('div', 'f-head');
-    h.appendChild(badge(n));
-    h.appendChild(widLink(n));
-    const t = el('span', 'f-title', n.Title || ''); t.dir = 'auto'; h.appendChild(t);
-    if (n.State) h.appendChild(el('span', 'state', n.State));
-    const p = pathOf(n);
-    if (p) h.appendChild(el('div', 'f-path', p));
-    box.appendChild(h);
-    const si = el('div', 'f-si');
-    si.appendChild(copyBtn(n.SystemInfo, 'copy f-copy'));
-    const tx = el('div', 'sysinfo-text', n.SystemInfo); tx.dir = 'auto';
-    si.appendChild(tx);
-    box.appendChild(si);
-    vp.appendChild(box);
   });
 }
 
@@ -946,7 +755,7 @@ function currentThemeCss() {
   return vars ? (':root{' + vars + '}') : '';
 }
 
-// The report view = exactly what the Table view is showing (optionally with the
+// The report view = exactly what the results table is showing (optionally with the
 // System-Info-only filter forced on for the "PDF System Info" action).
 function buildReportView(infoOnly) {
   const effectiveFilter = infoOnly || filterWithInfo;
@@ -961,7 +770,7 @@ function buildReportView(infoOnly) {
   // The literal rendered table, for the HTML-based (PDF) renderer. When the export
   // filter matches the on-screen filter this is byte-for-byte the current #viewport.
   let html;
-  if (effectiveFilter === filterWithInfo && currentView === 'table') {
+  if (effectiveFilter === filterWithInfo) {
     html = $('#viewport').innerHTML;
   } else {
     const holder = document.createElement('div');
