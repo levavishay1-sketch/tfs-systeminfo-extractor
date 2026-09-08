@@ -33,6 +33,24 @@ namespace TfsSystemInfoExtractor.Tests.Core
         }
 
         [Fact]
+        public void Serializes_extra_field_values_and_the_available_field_catalogue()
+        {
+            var node = ResultBuilder.Node(1);
+            node.Fields = new System.Collections.Generic.Dictionary<string, string> { ["System.AssignedTo"] = "Jane Doe" };
+            var result = new TfsSystemInfoExtractor.Core.Model.ExtractionResult(
+                new System.DateTimeOffset(2026, 9, 8, 12, 0, 0, System.TimeSpan.Zero),
+                new[] { node }, 1, 0, 0,
+                new[] { new TfsSystemInfoExtractor.Core.Model.FieldDefinition("System.AssignedTo", "Assigned To") });
+
+            using var doc = JsonDocument.Parse(Encoding.UTF8.GetString(_formatter.Render(result).Content));
+
+            Assert.Equal("Jane Doe", doc.RootElement.GetProperty("Roots")[0].GetProperty("Fields").GetProperty("System.AssignedTo").GetString());
+            var field = doc.RootElement.GetProperty("AvailableFields")[0];
+            Assert.Equal("System.AssignedTo", field.GetProperty("ReferenceName").GetString());
+            Assert.Equal("Assigned To", field.GetProperty("DisplayName").GetString());
+        }
+
+        [Fact]
         public void Does_not_escape_non_ascii()
         {
             var result = ResultBuilder.Result(ResultBuilder.Node(1, systemInfo: "שלום"));

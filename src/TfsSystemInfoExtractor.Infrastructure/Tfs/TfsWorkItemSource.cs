@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,18 +22,30 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
     {
         private readonly TfsRestClient _client;
         private readonly ISystemInfoFieldResolver _fieldResolver;
+        private readonly IFieldCatalog _fieldCatalog;
+        private readonly IHtmlToText _htmlToText;
         private readonly TfsOptions _options;
 
-        public TfsWorkItemSource(TfsRestClient client, ISystemInfoFieldResolver fieldResolver, IOptions<TfsOptions> options)
+        public TfsWorkItemSource(
+            TfsRestClient client,
+            ISystemInfoFieldResolver fieldResolver,
+            IFieldCatalog fieldCatalog,
+            IHtmlToText htmlToText,
+            IOptions<TfsOptions> options)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _fieldResolver = fieldResolver ?? throw new ArgumentNullException(nameof(fieldResolver));
+            _fieldCatalog = fieldCatalog ?? throw new ArgumentNullException(nameof(fieldCatalog));
+            _htmlToText = htmlToText ?? throw new ArgumentNullException(nameof(htmlToText));
             _options = (options ?? throw new ArgumentNullException(nameof(options))).Value;
         }
 
         public async Task<RawWorkItem> GetAsync(int id, CancellationToken cancellationToken)
         {
             var fieldRef = await _fieldResolver.ResolveReferenceNameAsync(cancellationToken).ConfigureAwait(false);
+            var catalog = (await _fieldCatalog.GetFieldsAsync(cancellationToken).ConfigureAwait(false))
+                .GroupBy(f => f.ReferenceName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             try
             {
@@ -39,7 +53,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                     .GetJsonAsync($"_apis/wit/workitems/{id.ToString(CultureInfo.InvariantCulture)}", "$expand=relations", cancellationToken)
                     .ConfigureAwait(false);
 
-                return TfsResponseMapper.ToRawWorkItem(id, document.RootElement, fieldRef, _options);
+                return TfsResponseMapper.ToRawWorkItem(id, document.RootElement, fieldRef, catalog, _htmlToText, _options);
             }
             catch (TfsUnreachableException ex)
             {

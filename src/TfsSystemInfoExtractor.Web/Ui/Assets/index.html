@@ -6,6 +6,7 @@
 <title>TFS System Info Extractor</title>
 <style>
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   :root {
     --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f9fafb; --border:#e5e7eb;
     --text:#1a1d23; --muted:#6b7280;
@@ -36,6 +37,8 @@
   .brand-title { font-size:17px; font-weight:650; }
   .brand-sub { font-size:12.5px; opacity:.82; margin-top:2px; }
   main { max-width:1140px; margin:24px auto; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
+  main > .card { min-width:0; }
+  .viewport { min-width:0; }
   .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     padding:18px 20px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
   .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -144,18 +147,48 @@
     text-transform:uppercase; letter-spacing:.4px; }
   .menu button small { color:var(--muted); font-size:11px; }
 
+  /* clickable filter pill + toolbar extras */
+  .statbtn { cursor:pointer; font:inherit; }
+  .statbtn:hover { border-color:var(--muted); }
+  .statbtn:disabled { cursor:default; opacity:.55; }
+  .statbtn:disabled:hover { border-color:var(--border); }
+  .stat.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .stat.active b { color:#fff; }
+  .view-table .cell-extra .none { color:var(--muted); }
+  .filter-banner { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12.5px;
+    background:rgba(99,102,241,.12); border:1px solid var(--accent); color:var(--accent-2);
+    border-radius:9px; padding:7px 12px; }
+  .filter-banner button { font:inherit; font-weight:600; color:var(--accent-2); background:none;
+    border:none; text-decoration:underline; cursor:pointer; padding:0; }
+  .fieldpanel { position:absolute; right:0; top:calc(100% + 4px); z-index:20; width:260px; max-height:320px;
+    overflow:auto; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,.16); }
+  .fieldpanel .empty-note { font-size:12px; color:var(--muted); padding:8px 10px; }
+  .fieldpanel label { display:flex; gap:8px; align-items:baseline; padding:6px 8px; border-radius:7px;
+    font-size:12.5px; cursor:pointer; }
+  .fieldpanel label:hover { background:var(--surface-2); }
+  .fieldchips { display:flex; gap:6px; flex-wrap:wrap; }
+  .fieldchip { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:2px 4px 2px 10px; }
+  .fieldchip button { border:none; background:none; cursor:pointer; color:var(--muted); font-size:13px;
+    line-height:1; padding:0 4px; border-radius:999px; }
+  .fieldchip button:hover { color:var(--bad); }
+
   /* view: table (primary) - grouped tree-table */
-  .view-table .tv-wrap { width:100%; }
+  .view-table .tv-wrap { width:100%; overflow-x:auto; }
   .view-table table.tv { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
-  .view-table .tv col.c-id { width:66px; }
-  .view-table .tv col.c-type { width:104px; }
-  .view-table .tv col.c-state { width:90px; }
-  .view-table .tv col.c-title { width:34%; }
+  .view-table .tv col.c-id { width:56px; }
+  .view-table .tv col.c-type { width:230px; }
+  .view-table .tv col.c-state { width:84px; }
+  .view-table .tv col.c-title { width:300px; }
+  .view-table .tv col.c-si { width:360px; }
+  .view-table .tv col.c-extra { width:160px; }
   .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; vertical-align:top; overflow-wrap:anywhere; }
   .view-table .tv thead th { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
     background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; border-bottom:1px solid var(--border); }
   .view-table .tv .cell-id a { font-weight:600; }
   .view-table .tv .cell-state { color:var(--muted); }
+  .view-table .tv .cell-extra { color:var(--text); font-size:12px; }
 
   /* one <tbody> per root work item = one visually distinct group */
   .view-table .tv-grp > tr > td { border-bottom:1px solid var(--border); }
@@ -168,15 +201,19 @@
   .view-table .tv tr.tv-root > td { background:var(--tv-root-bg); padding-top:11px; padding-bottom:11px;
     border-top:1px solid var(--tvline); }
   .view-table .tv tr.tv-root > .cell-id { border-left-color:var(--tv-rail-strong); }
-  .view-table .tv tr.tv-root .nm { font-weight:700; }
+  .view-table .tv tr.tv-root .tv-name { font-weight:700; }
   .view-table .tv tr.err > td { background:rgba(220,38,38,.06); }
+  /* rows shown only as hierarchy context while the "with info" filter is active */
+  .view-table .tv tr.tv-context > td { opacity:.62; }
+  .view-table .tv tr.tv-context .tv-name { font-weight:400; }
 
-  .view-table .tv-title-inner { display:flex; align-items:flex-start; min-width:0; }
-  .view-table .tv-guide { flex:none; width:18px; align-self:stretch; position:relative; }
-  .view-table .tv-guide.line::before { content:''; position:absolute; left:9px; top:0; bottom:0;
+  /* TYPE cell now carries the hierarchy (indent + connectors + toggle) */
+  .view-table .tv-type-inner { display:flex; align-items:flex-start; min-width:0; }
+  .view-table .tv-guide { flex:none; width:16px; align-self:stretch; position:relative; }
+  .view-table .tv-guide.line::before { content:''; position:absolute; left:8px; top:0; bottom:0;
     border-left:1.5px solid var(--tvline); }
-  .view-table .tv-guide.elbow::after { content:''; position:absolute; left:9px; top:0; height:15px;
-    width:9px; border-left:1.5px solid var(--tvline); border-bottom:1.5px solid var(--tvline); border-bottom-left-radius:6px; }
+  .view-table .tv-guide.elbow::after { content:''; position:absolute; left:8px; top:0; height:15px;
+    width:8px; border-left:1.5px solid var(--tvline); border-bottom:1.5px solid var(--tvline); border-bottom-left-radius:6px; }
   .view-table .tv-toggle { flex:none; width:16px; height:16px; margin-right:4px; padding:0; border:none;
     background:none; cursor:pointer; position:relative; align-self:flex-start; margin-top:1px; }
   .view-table .tv-toggle::before { content:''; position:absolute; top:50%; left:50%; width:0; height:0;
@@ -184,11 +221,13 @@
     transform:translate(-50%,-50%); transition:transform .12s; }
   .view-table .tv-toggle.open::before { transform:translate(-50%,-50%) rotate(90deg); }
   .view-table .tv-toggle.leaf::before { border:none; width:4px; height:4px; border-radius:50%; background:var(--tvline); }
-  .view-table .tv-name { min-width:0; }
-  .view-table .tv-name .nm { word-break:break-word; }
-  .view-table .tv-name .kids { display:inline-block; margin-left:6px; font-size:10.5px; font-weight:600;
-    color:var(--muted); background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:0 6px; }
-  .view-table .tv-parent { display:none; font-size:11px; color:var(--muted); margin-top:2px; }
+  .view-table .tv-typebox { min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 6px; }
+  .view-table .tv-typebox .badge { flex:none; }
+  .view-table .tv-typebox .kids { font-size:10.5px; font-weight:600; color:var(--muted);
+    background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:0 6px; }
+  .view-table .tv-typebox .lvl { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+  .view-table .tv-name { min-width:0; word-break:break-word; }
+  .view-table .tv-parent { display:none; font-size:11px; color:var(--muted); margin-top:3px; width:100%; }
 
   .view-table .tv-si { position:relative; white-space:pre-wrap; word-break:break-word; }
   .view-table .tv-si.err { color:var(--bad); }
@@ -211,7 +250,7 @@
     .view-table .tv tr.tv-root > td { border-top:none; }
     .view-table .tv td { border:none !important; padding:3px 0; }
     .view-table .tv td::before { content:attr(data-label) ':\A0'; font-weight:600; color:var(--muted); }
-    .view-table .tv td.cell-title::before { content:''; }
+    .view-table .tv td.cell-type::before { content:''; }
     .view-table .tv .cell-id { border-left:none; }
     .view-table .tv-guide { display:none; }
     .view-table .tv-parent { display:block; }
@@ -281,12 +320,16 @@
       <div class='bar2'>
         <div class='stats'>
           <span class='stat'><b id='statTotal'>0</b> items</span>
-          <span class='stat ok'><b id='statInfo'>0</b> with info</span>
+          <button class='stat ok statbtn' id='filterInfoBtn' type='button' aria-pressed='false'><b id='statInfo'>0</b> with info</button>
           <span class='stat bad' id='statErrWrap' hidden><b id='statErr'>0</b> errors</span>
           <span class='stat'>depth <b id='statDepth'>0</b></span>
         </div>
         <button class='btn ghost sm' id='expandAll' type='button' hidden>Expand all</button>
         <button class='btn ghost sm' id='collapseAll' type='button' hidden>Collapse all</button>
+        <span class='exportwrap' id='fieldsWrap' hidden>
+          <button class='btn ghost sm' id='fieldsBtn' type='button'>Fields</button>
+          <div class='fieldpanel' id='fieldPanel' hidden></div>
+        </span>
         <span class='exportwrap'>
           <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
           <div class='menu' id='exportMenu' hidden>
@@ -297,6 +340,11 @@
           </div>
         </span>
       </div>
+      <div class='filter-banner' id='filterBanner' hidden>
+        <span id='filterBannerText'></span>
+        <button id='clearFilterBtn' type='button'>Show all</button>
+      </div>
+      <div class='fieldchips' id='fieldChips' hidden></div>
     </div>
     <div class='viewport' id='viewport'></div>
   </section>
@@ -389,6 +437,10 @@ function setView(v) {
   const collapsible = v === 'tree' || v === 'table';
   $('#expandAll').hidden = !collapsible;
   $('#collapseAll').hidden = !collapsible;
+  $('#fieldsWrap').hidden = v !== 'table';
+  if (v !== 'table') filterWithInfo = false;
+  if (typeof updateFilterUi === 'function') updateFilterUi();
+  if (typeof renderFieldChips === 'function') renderFieldChips();
   if (roots) render();
 }
 
@@ -396,6 +448,11 @@ async function loadResults() {
   const r = await fetch('/api/download?jobId=' + jobId + '&type=json');
   const data = await r.json();
   roots = data.Roots || [];
+  availableFields = data.AvailableFields || [];
+  fieldLabels = {};
+  availableFields.forEach(f => { fieldLabels[f.ReferenceName] = f.DisplayName; });
+  extraFields = extraFields.filter(ref => fieldLabels[ref]);
+  filterWithInfo = false;
   flat = [];
   byId = {};
   (function rec(nodes, depth, parent, ancLast) {
@@ -423,7 +480,10 @@ async function loadResults() {
   $('#statErr').textContent = stats.errors;
   $('#statErrWrap').hidden = stats.errors === 0;
   $('#statDepth').textContent = stats.depth;
+  $('#filterInfoBtn').disabled = stats.withInfo === 0;
 
+  renderFieldPanel();
+  updateFilterUi();
   setView(currentView);
 }
 
@@ -531,91 +591,138 @@ $('#collapseAll').addEventListener('click', () => {
   else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open'));
 });
 
-/* table - primary view: tree-table with full System Info + responsive layout */
-function tableRows() { return flat; }
-function hiddenByCollapse(n) {
-  let p = n._parent;
-  let guard = 0;
-  while (p != null && guard++ < 60) {
-    if (collapsed.has(p)) return true;
-    p = byId[p] ? byId[p]._parent : null;
-  }
-  return false;
+/* table - primary view: grouped tree-table, "with info" filter, optional extra columns */
+let filterWithInfo = false;
+let availableFields = [];   // [{ ReferenceName, DisplayName }]
+let fieldLabels = {};       // referenceName -> displayName
+let extraFields = [];       // referenceNames, persisted
+try { const s = JSON.parse(localStorage.getItem('tfsExtraFields') || '[]'); if (Array.isArray(s)) extraFields = s.filter(x => typeof x === 'string'); } catch (e) {}
+function saveExtraFields() { try { localStorage.setItem('tfsExtraFields', JSON.stringify(extraFields)); } catch (e) {} }
+
+function toggleCollapse(id) {
+  if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+  render();
 }
-function subtreeInOrder(root) {
+function infoInSubtree(n) {
+  return hasInfo(n) || (n.Children || []).some(infoInSubtree);
+}
+function fieldLabel(ref) { return fieldLabels[ref] || ref; }
+function tableColumnCount() { return 5 + extraFields.length; }
+
+// Visible rows for the current filter + collapse state, each with its tree-render metadata.
+function visibleTableRows() {
   const out = [];
-  (function rec(n) { out.push(n); (n.Children || []).forEach(rec); })(root);
+  const showRoots = roots.filter(r => !filterWithInfo || infoInSubtree(r));
+  showRoots.forEach((root, ri) => walk(root, 0, [], ri === showRoots.length - 1));
+  function walk(n, depth, ancLast, isLast) {
+    const kids = (n.Children || []).filter(c => !filterWithInfo || infoInSubtree(c));
+    const expanded = !collapsed.has(n.Id);
+    out.push({ n: n, depth: depth, last: isLast, ancLast: ancLast, hasKids: kids.length > 0, expanded: expanded });
+    if (expanded) kids.forEach((c, i) => walk(c, depth + 1, ancLast.concat(isLast), i === kids.length - 1));
+  }
   return out;
 }
+
 function vTable(vp) {
+  const rows = visibleTableRows();
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
+  // keep System Info readable: force horizontal scroll rather than squeezing columns
+  tbl.style.minWidth = (56 + 230 + 300 + 84 + 360 + extraFields.length * 160) + 'px';
+
   const cg = document.createElement('colgroup');
   ['c-id', 'c-type', 'c-title', 'c-state', 'c-si'].forEach(c => { const col = document.createElement('col'); col.className = c; cg.appendChild(col); });
+  extraFields.forEach(() => { const col = document.createElement('col'); col.className = 'c-extra'; cg.appendChild(col); });
   tbl.appendChild(cg);
+
   const thead = el('thead');
   const htr = el('tr');
   ['ID', 'Type', 'Title', 'State', 'System Info'].forEach(h => htr.appendChild(el('th', null, h)));
+  extraFields.forEach(ref => htr.appendChild(el('th', null, fieldLabel(ref))));
   thead.appendChild(htr);
   tbl.appendChild(thead);
 
-  // One <tbody> per root work item so each Work Item + its children reads as one group.
-  roots.forEach((root, gi) => {
-    if (gi > 0) {
-      const gap = el('tbody', 'tv-gap');
-      const gtr = el('tr'); const gtd = el('td'); gtd.colSpan = 5; gtr.appendChild(gtd); gap.appendChild(gtr);
-      tbl.appendChild(gap);
+  if (!rows.length) {
+    const tb = el('tbody');
+    const tr = el('tr');
+    const td = el('td', 'empty', 'No Work Items match the current filter.');
+    td.colSpan = tableColumnCount();
+    tr.appendChild(td); tb.appendChild(tr); tbl.appendChild(tb);
+    wrap.appendChild(tbl); vp.appendChild(wrap);
+    return;
+  }
+
+  let group = null, groupIndex = -1;
+  rows.forEach(r => {
+    if (r.depth === 0) {
+      groupIndex++;
+      if (groupIndex > 0) {
+        const gap = el('tbody', 'tv-gap');
+        const gtr = el('tr'); const gtd = el('td'); gtd.colSpan = tableColumnCount(); gtr.appendChild(gtd); gap.appendChild(gtr);
+        tbl.appendChild(gap);
+      }
+      group = el('tbody', 'tv-grp');
+      tbl.appendChild(group);
     }
-    const group = el('tbody', 'tv-grp');
-    subtreeInOrder(root).forEach(n => {
-      if (!hiddenByCollapse(n)) group.appendChild(tableRow(n, n === root));
-    });
-    tbl.appendChild(group);
+    group.appendChild(tableRow(r));
   });
 
   wrap.appendChild(tbl);
   vp.appendChild(wrap);
 }
-function tableRow(n, isRoot) {
-  const tr = el('tr', (isRoot ? 'tv-root' : '') + (n.Error ? ' err' : ''));
 
+function tableRow(r) {
+  const n = r.n;
+  const isRoot = r.depth === 0;
+  const contextOnly = filterWithInfo && !n.Error && !hasInfo(n);
+  let cls = isRoot ? 'tv-root' : '';
+  if (n.Error) cls += ' err';
+  if (contextOnly) cls += ' tv-context';
+  const tr = el('tr', cls.trim() || null);
+
+  // ID
   const cId = el('td', 'cell-id'); cId.dataset.label = 'ID'; cId.appendChild(widLink(n)); tr.appendChild(cId);
 
-  const cType = el('td', 'cell-type'); cType.dataset.label = 'Type'; cType.appendChild(badge(n)); tr.appendChild(cType);
-
-  const cTitle = el('td', 'cell-title'); cTitle.dataset.label = 'Title';
-  const inner = el('div', 'tv-title-inner');
-  for (let i = 0; i < n._depth; i++) {
+  // TYPE - now carries the hierarchy (indent guides + toggle + level + child count)
+  const cType = el('td', 'cell-type'); cType.dataset.label = 'Type';
+  const tinner = el('div', 'tv-type-inner');
+  for (let i = 0; i < r.depth; i++) {
     const g = el('span', 'tv-guide');
-    if (i < n._depth - 1) { if (!n._ancLast[i]) g.classList.add('line'); }
-    else { g.classList.add('elbow'); if (!n._last) g.classList.add('line'); }
-    inner.appendChild(g);
+    if (i < r.depth - 1) { if (!r.ancLast[i]) g.classList.add('line'); }
+    else { g.classList.add('elbow'); if (!r.last) g.classList.add('line'); }
+    tinner.appendChild(g);
   }
-  const tog = el('button', 'tv-toggle' + (n._kids ? '' : ' leaf')); tog.type = 'button';
-  if (n._kids) {
-    if (!collapsed.has(n.Id)) tog.classList.add('open');
+  const tog = el('button', 'tv-toggle' + (r.hasKids ? '' : ' leaf')); tog.type = 'button';
+  if (r.hasKids) {
+    if (r.expanded) tog.classList.add('open');
     tog.setAttribute('aria-label', 'toggle children');
-    tog.addEventListener('click', ev => {
-      ev.stopPropagation();
-      if (collapsed.has(n.Id)) collapsed.delete(n.Id); else collapsed.add(n.Id);
-      render();
-    });
+    tog.addEventListener('click', ev => { ev.stopPropagation(); toggleCollapse(n.Id); });
   }
-  inner.appendChild(tog);
-  const nameWrap = el('div', 'tv-name');
-  const nm = el('span', 'nm', n.Title || '(untitled)'); nm.dir = 'auto';
-  nameWrap.appendChild(nm);
-  if (n._kids) nameWrap.appendChild(el('span', 'kids', n._kids + (n._kids === 1 ? ' child' : ' children')));
+  tinner.appendChild(tog);
+
+  const tbox = el('div', 'tv-typebox');
+  tbox.appendChild(badge(n));
+  if (!isRoot) tbox.appendChild(el('span', 'lvl', 'L' + r.depth));
+  const totalKids = n.Children ? n.Children.length : 0;
+  if (totalKids) tbox.appendChild(el('span', 'kids', totalKids + (totalKids === 1 ? ' child' : ' children')));
   if (n._parent != null) {
     const pn = byId[n._parent];
-    nameWrap.appendChild(el('div', 'tv-parent', 'child of #' + n._parent + (pn && pn.Title ? (' - ' + pn.Title) : '')));
+    tbox.appendChild(el('div', 'tv-parent', 'child of #' + n._parent + (pn && pn.Title ? (' - ' + pn.Title) : '')));
   }
-  inner.appendChild(nameWrap);
-  cTitle.appendChild(inner);
+  tinner.appendChild(tbox);
+  cType.appendChild(tinner);
+  tr.appendChild(cType);
+
+  // TITLE - the Work Item name only
+  const cTitle = el('td', 'cell-title'); cTitle.dataset.label = 'Title';
+  const nm = el('span', 'tv-name', n.Title || '(untitled)'); nm.dir = 'auto';
+  cTitle.appendChild(nm);
   tr.appendChild(cTitle);
 
+  // STATE
   const cState = el('td', 'cell-state', n.State || ''); cState.dataset.label = 'State'; tr.appendChild(cState);
 
+  // SYSTEM INFO
   const cSi = el('td', 'cell-si'); cSi.dataset.label = 'System Info';
   const si = el('div', 'tv-si' + (n.Error ? ' err' : ''));
   if (n.Error) {
@@ -639,7 +746,88 @@ function tableRow(n, isRoot) {
   }
   cSi.appendChild(si);
   tr.appendChild(cSi);
+
+  // EXTRA FIELDS (opt-in columns)
+  extraFields.forEach(ref => {
+    const c = el('td', 'cell-extra'); c.dataset.label = fieldLabel(ref);
+    const value = (n.Fields && n.Fields[ref]) || '';
+    const d = el('div', value ? null : 'none', value || '-'); d.dir = 'auto';
+    c.appendChild(d);
+    tr.appendChild(c);
+  });
+
   return tr;
+}
+
+/* filter: "with info" */
+$('#filterInfoBtn').addEventListener('click', () => {
+  filterWithInfo = !filterWithInfo;
+  if (filterWithInfo && currentView !== 'table') { setView('table'); }
+  else if (currentView === 'table') { render(); }
+  updateFilterUi();
+});
+$('#clearFilterBtn').addEventListener('click', () => {
+  filterWithInfo = false;
+  updateFilterUi();
+  if (currentView === 'table') render();
+});
+function updateFilterUi() {
+  const on = filterWithInfo && currentView === 'table';
+  const btn = $('#filterInfoBtn');
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('#filterBanner').hidden = !on;
+  if (on) $('#filterBannerText').textContent = 'Showing only Work Items that have System Info (parent rows shown greyed for context).';
+}
+
+/* additional TFS field columns */
+$('#fieldsBtn').addEventListener('click', e => { e.stopPropagation(); $('#fieldPanel').hidden = !$('#fieldPanel').hidden; });
+$('#fieldPanel').addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', () => { $('#fieldPanel').hidden = true; });
+function renderFieldPanel() {
+  const panel = $('#fieldPanel');
+  panel.innerHTML = '';
+  if (!availableFields.length) {
+    panel.appendChild(el('div', 'empty-note', 'No additional TFS fields were found on these Work Items.'));
+    return;
+  }
+  availableFields.forEach(f => {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = extraFields.indexOf(f.ReferenceName) >= 0;
+    cb.addEventListener('change', () => {
+      if (cb.checked) { if (extraFields.indexOf(f.ReferenceName) < 0) extraFields.push(f.ReferenceName); }
+      else { extraFields = extraFields.filter(x => x !== f.ReferenceName); }
+      saveExtraFields();
+      renderFieldChips();
+      if (currentView === 'table') render();
+    });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(f.DisplayName));
+    panel.appendChild(label);
+  });
+}
+function renderFieldChips() {
+  const wrap = $('#fieldChips');
+  wrap.innerHTML = '';
+  const show = extraFields.length > 0 && currentView === 'table';
+  wrap.hidden = !show;
+  if (!show) return;
+  extraFields.forEach(ref => {
+    const chip = el('span', 'fieldchip');
+    chip.appendChild(document.createTextNode(fieldLabel(ref)));
+    const x = el('button', null, '×'); x.type = 'button'; x.setAttribute('aria-label', 'remove ' + fieldLabel(ref));
+    x.addEventListener('click', () => {
+      extraFields = extraFields.filter(r => r !== ref);
+      saveExtraFields();
+      renderFieldPanel();
+      renderFieldChips();
+      if (currentView === 'table') render();
+    });
+    chip.appendChild(x);
+    wrap.appendChild(chip);
+  });
 }
 
 /* outline */

@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using TfsSystemInfoExtractor.Core.Abstractions;
 using TfsSystemInfoExtractor.Core.Model;
 using TfsSystemInfoExtractor.Infrastructure.Configuration;
 
@@ -8,7 +10,19 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
     /// <summary>Pure mapping from a TFS work-item JSON payload to <see cref="RawWorkItem"/>.</summary>
     internal static class TfsResponseMapper
     {
-        public static RawWorkItem ToRawWorkItem(int id, JsonElement root, string systemInfoFieldRef, TfsOptions options)
+        /// <summary>Fields already surfaced as first-class <see cref="RawWorkItem"/> properties; never offered as "extra".</summary>
+        private static readonly HashSet<string> DefaultFieldRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "System.Id", "System.WorkItemType", "System.Title", "System.State"
+        };
+
+        public static RawWorkItem ToRawWorkItem(
+            int id,
+            JsonElement root,
+            string systemInfoFieldRef,
+            IReadOnlyDictionary<string, FieldDefinition> catalog,
+            IHtmlToText htmlToText,
+            TfsOptions options)
         {
             var fields = root.TryGetProperty("fields", out var f) ? f : default;
 
@@ -19,7 +33,72 @@ namespace TfsSystemInfoExtractor.Infrastructure.Tfs
                 state: GetFieldString(fields, "System.State"),
                 webUrl: GetHtmlLink(root),
                 systemInfoHtml: GetFieldString(fields, systemInfoFieldRef),
-                childIds: GetChildIds(root, options.ChildLinkRelation));
+                childIds: GetChildIds(root, options.ChildLinkRelation),
+                sourceControl: null,
+                fields: ExtractExtraFields(fields, systemInfoFieldRef, catalog, htmlToText));
+        }
+
+        private static IReadOnlyDictionary<string, string> ExtractExtraFields(
+            JsonElement fields,
+            string systemInfoFieldRef,
+            IReadOnlyDictionary<string, FieldDefinition> catalog,
+            IHtmlToText htmlToText)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (fields.ValueKind != JsonValueKind.Object)
+            {
+                return result;
+            }
+
+            foreach (var property in fields.EnumerateObject())
+            {
+                if (DefaultFieldRefs.Contains(property.Name) ||
+                    string.Equals(property.Name, systemInfoFieldRef, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = FlattenValue(property.Value);
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                if (catalog.TryGetValue(property.Name, out var definition) && definition.IsHtml)
+                {
+                    value = htmlToText.Convert(value);
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        continue;
+                    }
+                }
+
+                result[property.Name] = value;
+            }
+
+            return result;
+        }
+
+        private static string FlattenValue(JsonElement value)
+        {
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.String:
+                    return value.GetString() ?? string.Empty;
+                case JsonValueKind.Number:
+                    return value.GetRawText();
+                case JsonValueKind.True:
+                    return "true";
+                case JsonValueKind.False:
+                    return "false";
+                case JsonValueKind.Object:
+                    // TFS identity fields (AssignedTo, ChangedBy, ...) are objects with a display name.
+                    return value.TryGetProperty("displayName", out var displayName) && displayName.ValueKind == JsonValueKind.String
+                        ? displayName.GetString() ?? string.Empty
+                        : string.Empty;
+                default:
+                    return string.Empty;
+            }
         }
 
         private static string? GetFieldString(JsonElement fields, string referenceName)

@@ -14,13 +14,15 @@ namespace TfsSystemInfoExtractor.Core.Model
             IReadOnlyList<WorkItemNode> roots,
             int processedCount,
             int failedCount,
-            int withSystemInfoCount)
+            int withSystemInfoCount,
+            IReadOnlyList<FieldDefinition>? availableFields = null)
         {
             GeneratedAt = generatedAt;
             Roots = roots;
             ProcessedCount = processedCount;
             FailedCount = failedCount;
             WithSystemInfoCount = withSystemInfoCount;
+            AvailableFields = availableFields ?? System.Array.Empty<FieldDefinition>();
         }
 
         public DateTimeOffset GeneratedAt { get; }
@@ -33,5 +35,11 @@ namespace TfsSystemInfoExtractor.Core.Model
         public int FailedCount { get; }
 
         public int WithSystemInfoCount { get; }
+
+        /// <summary>
+        /// Extra TFS fields (beyond the default columns) that appear on at least one
+        /// extracted work item. The UI offers these as optional additional columns.
+        /// </summary>
+        public IReadOnlyList<FieldDefinition> AvailableFields { get; }
     }
 }

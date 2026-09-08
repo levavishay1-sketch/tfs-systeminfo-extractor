@@ -43,6 +43,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.DependencyInjection
                     provider.GetRequiredService<IOptions<TfsOptions>>());
             });
 
+            services.AddScoped<IFieldCatalog, TfsFieldCatalog>();
             services.AddScoped<ISystemInfoFieldResolver, TfsSystemInfoFieldResolver>();
             services.AddScoped<IWorkItemSource, TfsWorkItemSource>();
             services.AddSingleton<IHtmlToText, HtmlToPlainTextConverter>();

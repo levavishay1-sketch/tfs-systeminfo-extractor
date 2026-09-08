@@ -16,14 +16,15 @@ user); no PAT.
 src/
   TfsSystemInfoExtractor.Core            domain models + application services + ports
       Model/            WorkItemNode, RawWorkItem, ExtractionResult, ExportArtifact,
-                        SourceControl/ (SourceControlInfo, SourceRepository, Commit, Developer)
-      Abstractions/     IWorkItemSource, ISystemInfoFieldResolver, IHtmlToText,
+                        FieldDefinition, SourceControl/ (SourceControlInfo, SourceRepository, Commit, Developer)
+      Abstractions/     IWorkItemSource, ISystemInfoFieldResolver, IFieldCatalog, IHtmlToText,
                         IProgressListener, IExportFormatter, IExtractionArtifactStore, ISystemClock
       Extraction/       WorkItemIdParser, HierarchyWalker, ExtractionService
       Export/           Json / Markdown / Csv formatters + ExportFormatterSelector
       Exceptions/       TfsExtractorException hierarchy
   TfsSystemInfoExtractor.Infrastructure  adapters
-      Tfs/              TfsRestClient, TfsWorkItemSource, TfsSystemInfoFieldResolver, TfsResponseMapper
+      Tfs/              TfsRestClient, TfsWorkItemSource, TfsFieldCatalog,
+                        TfsSystemInfoFieldResolver, TfsResponseMapper
       Text/             HtmlToPlainTextConverter
       Export/           PdfExportFormatter, PdfReportDocumentBuilder  (IExportFormatter with a PDF dependency)
       Storage/          FileSystemArtifactStore
@@ -87,6 +88,14 @@ the live log, then browse the result (grouped Table view by default; also
 Compact, Tree, Outline, Info Focus) and use **Download / Export**
 (CSV, PDF release report, JSON, Markdown). The same files are written to
 the export folder.
+
+In the Table view the **with info** count is a toggle that filters to the
+Work Items that have System Info (parent rows kept for context), and
+**Fields** lets advanced users add extra columns for any additional TFS
+field found on the extracted items (the list is built from the TFS field
+catalogue, `_apis/wit/fields`; selections persist per browser). The
+default columns and layout are unchanged; the hierarchy is shown in the
+Type column.
 
 Every export format is an `IExportFormatter` (Core port). Pure formatters
 (JSON / Markdown / CSV) live in Core; the PDF formatter lives in

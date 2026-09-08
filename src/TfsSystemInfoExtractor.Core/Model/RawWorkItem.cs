@@ -18,7 +18,8 @@ namespace TfsSystemInfoExtractor.Core.Model
             string? webUrl,
             string? systemInfoHtml,
             IReadOnlyList<int> childIds,
-            SourceControlInfo? sourceControl = null)
+            SourceControlInfo? sourceControl = null,
+            IReadOnlyDictionary<string, string>? fields = null)
         {
             Id = id;
             Type = type;
@@ -28,6 +29,7 @@ namespace TfsSystemInfoExtractor.Core.Model
             SystemInfoHtml = systemInfoHtml;
             ChildIds = childIds;
             SourceControl = sourceControl;
+            Fields = fields;
         }
 
         public int Id { get; }
@@ -46,5 +48,8 @@ namespace TfsSystemInfoExtractor.Core.Model
 
         /// <summary>Source-control activity for the item, when the source provided it; otherwise null.</summary>
         public SourceControlInfo? SourceControl { get; }
+
+        /// <summary>Extra field values keyed by reference name; null or empty when none.</summary>
+        public IReadOnlyDictionary<string, string>? Fields { get; }
     }
 }

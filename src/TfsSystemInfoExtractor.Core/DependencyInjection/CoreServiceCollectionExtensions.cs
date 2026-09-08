@@ -21,6 +21,7 @@ namespace TfsSystemInfoExtractor.Core.DependencyInjection
                 .Bind(configuration.GetSection(ExtractionOptions.SectionName));
 
             services.TryAddSingleton<ISystemClock, SystemClock>();
+            // IFieldCatalog is contributed by the Infrastructure package.
             services.AddSingleton<WorkItemIdParser>();
             services.AddScoped<HierarchyWalker>();
             services.AddScoped<ExtractionService>();

@@ -28,6 +28,12 @@ namespace TfsSystemInfoExtractor.Tests.Fakes
             return this;
         }
 
+        public FakeWorkItemSource AddWithFields(int id, IReadOnlyDictionary<string, string> fields, string? systemInfoHtml = null, params int[] childIds)
+        {
+            _items[id] = new RawWorkItem(id, "Task", $"Item {id}", "Active", $"http://tfs/{id}", systemInfoHtml, childIds, null, fields);
+            return this;
+        }
+
         public FakeWorkItemSource Forbid(int id)
         {
             _forbidden.Add(id);

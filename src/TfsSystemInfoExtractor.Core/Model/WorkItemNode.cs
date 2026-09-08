@@ -32,6 +32,14 @@ namespace TfsSystemInfoExtractor.Core.Model
         /// </summary>
         public SourceControlInfo? SourceControl { get; set; }
 
+        /// <summary>
+        /// Additional TFS field values, keyed by reference name (e.g.
+        /// <c>System.AssignedTo</c>). Excludes the fields already surfaced as
+        /// first-class properties (Id, Type, Title, State) and the System Info field.
+        /// Null when the item carries no extra fields.
+        /// </summary>
+        public IReadOnlyDictionary<string, string>? Fields { get; set; }
+
         public List<WorkItemNode> Children { get; } = new List<WorkItemNode>();
 
         [JsonIgnore]

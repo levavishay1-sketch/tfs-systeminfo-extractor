@@ -27,7 +27,8 @@ namespace TfsSystemInfoExtractor.Core.Export
             var document = new JsonDocumentShape
             {
                 GeneratedAt = result.GeneratedAt.DateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                Roots = result.Roots
+                Roots = result.Roots,
+                AvailableFields = result.AvailableFields
             };
 
             var json = JsonSerializer.Serialize(document, Options);
@@ -44,6 +45,9 @@ namespace TfsSystemInfoExtractor.Core.Export
 
             public System.Collections.Generic.IReadOnlyList<WorkItemNode> Roots { get; set; } =
                 System.Array.Empty<WorkItemNode>();
+
+            public System.Collections.Generic.IReadOnlyList<FieldDefinition> AvailableFields { get; set; } =
+                System.Array.Empty<FieldDefinition>();
         }
     }
 }
