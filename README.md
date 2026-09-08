@@ -111,12 +111,14 @@ rendered table HTML). The matching `IReportRenderer` turns that into a file
 that is streamed to you and also saved to `Export:OutputDirectory`.
 
 - **Excel** (`.xlsx`) is a formatted workbook of that same prepared view: a
-  real Excel table with banded rows and a column auto-filter, a frozen and
-  styled header row, parent Work Items shown bold on a tint with children
-  indented in the Type column, content-sized columns, and every value set to
-  wrap so long System Info / extra fields are fully readable and never
-  truncated. Built on `DocumentFormat.OpenXml` only (MIT - no commercial
-  dependency, no Excel install needed).
+  real Excel table with a column auto-filter and a frozen, styled header row.
+  Rows are grouped by root Work Item - each root and all of its descendants
+  share one background (groups alternate plain / light blue) and are boxed
+  together by a single thick outer border, whatever the group's size. Parent
+  rows stay bold, the Type column keeps its hierarchy indentation, columns are
+  content-sized, and every value wraps so long System Info / extra fields are
+  fully readable and never truncated. Built on `DocumentFormat.OpenXml` only
+  (MIT - no commercial dependency, no Excel install needed).
 - **PDF / PDF System Info** are produced by the machine's own headless
   **Edge or Chrome** (`--print-to-pdf`) rendering the UI's own HTML/CSS - so
   the PDF looks like the table, and Hebrew / RTL / mixed text render

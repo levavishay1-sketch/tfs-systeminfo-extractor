@@ -16,11 +16,13 @@ namespace TfsSystemInfoExtractor.Core.Reporting
     /// (and the PDF export) are showing - this renderer only formats that state, it never
     /// re-decides what to show.
     /// <para>
-    /// The sheet is a real Excel table (banded rows + column auto-filter), the header row
-    /// is frozen and styled, parent Work Items are bold on a tint while children are
-    /// indented in the Type column, long text wraps and is never truncated, and columns
-    /// are sized to their content. Built on <c>DocumentFormat.OpenXml</c> only (MIT, no
-    /// commercial dependency).
+    /// The sheet is a real Excel table (column auto-filter, frozen styled header). Rows are
+    /// grouped by root Work Item: a root and all of its descendants share one background
+    /// (groups alternate plain / tinted) and are boxed together by a single thick outer
+    /// border, whatever the group's size. Parent rows stay bold, the Type column keeps its
+    /// hierarchy indentation, long text wraps and is never truncated, and columns are sized
+    /// to their content. Built on <c>DocumentFormat.OpenXml</c> only (MIT, no commercial
+    /// dependency).
     /// </para>
     /// </summary>
     public sealed class ExcelReportRenderer : IReportRenderer
@@ -57,12 +59,14 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                 var lastColumnRef = ColumnLetter(columns.Count);
                 var lastDataRow = FirstDataRow + Math.Max(view.Rows.Count, 1) - 1;
 
+                var groups = AssignRootGroups(view.Rows);
+
                 var sheetData = new SheetData();
                 sheetData.Append(TitleBlock(view, styleCatalog));
                 sheetData.Append(HeaderRowElement(columns, styleCatalog));
-                foreach (var (row, index) in view.Rows.Select((r, i) => (r, i)))
+                for (var index = 0; index < view.Rows.Count; index++)
                 {
-                    sheetData.Append(DataRowElement(row, columns, styleCatalog, FirstDataRow + index));
+                    sheetData.Append(DataRowElement(view.Rows[index], columns, styleCatalog, FirstDataRow + index, groups[index]));
                 }
 
                 if (view.Rows.Count == 0)
@@ -128,7 +132,46 @@ namespace TfsSystemInfoExtractor.Core.Reporting
             return row;
         }
 
-        private static Row DataRowElement(ReportRow row, IReadOnlyList<ReportColumn> columns, StyleCatalog styles, int rowIndex)
+        /// <summary>
+        /// Every root Work Item and all of its descendants form one visual group. Groups
+        /// alternate background (group 0 plain, group 1 tinted, ...) and each is boxed by a
+        /// thick outer border - the shade and the border are the same whatever the group's
+        /// size. A new group starts at each <see cref="ReportRow.GroupStart"/> / depth-0 row.
+        /// </summary>
+        private static RowGroup[] AssignRootGroups(IReadOnlyList<ReportRow> rows)
+        {
+            var result = new RowGroup[rows.Count];
+            var groupIndex = -1;
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var startsGroup = rows[i].GroupStart || rows[i].Depth <= 0 || groupIndex < 0;
+                if (startsGroup)
+                {
+                    groupIndex++;
+                    if (i > 0)
+                    {
+                        result[i - 1].IsLast = true;
+                    }
+                }
+
+                result[i] = new RowGroup
+                {
+                    Index = groupIndex,
+                    Shade = groupIndex % 2 == 1,
+                    IsFirst = startsGroup
+                };
+            }
+
+            if (rows.Count > 0)
+            {
+                result[rows.Count - 1].IsLast = true;
+            }
+
+            return result;
+        }
+
+        private static Row DataRowElement(ReportRow row, IReadOnlyList<ReportColumn> columns, StyleCatalog styles, int rowIndex, RowGroup group)
         {
             var isParent = row.Depth <= 0;
             var element = new Row { RowIndex = (uint)rowIndex };
@@ -138,7 +181,17 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                 var column = columns[i];
                 var text = row.Cells.TryGetValue(column.Key, out var value) ? value ?? string.Empty : string.Empty;
                 var indent = column.Kind == ReportColumnKind.Type && row.Depth > 0 ? row.Depth : 0;
-                var style = styles.Body(isParent, row.Error, indent);
+                var style = styles.Body(new BodyStyle
+                {
+                    Parent = isParent,
+                    Error = row.Error,
+                    Indent = indent,
+                    Shade = group.Shade,
+                    EdgeTop = group.IsFirst,
+                    EdgeBottom = group.IsLast,
+                    EdgeLeft = i == 0,
+                    EdgeRight = i == columns.Count - 1
+                });
                 element.Append(TextCell(ColumnLetter(i + 1) + rowIndex, text, style));
             }
 
@@ -151,7 +204,13 @@ namespace TfsSystemInfoExtractor.Core.Reporting
             for (var i = 0; i < columns.Count; i++)
             {
                 var text = i == 0 ? "No Work Items to show." : string.Empty;
-                element.Append(TextCell(ColumnLetter(i + 1) + rowIndex, text, styles.Body(false, false, 0)));
+                element.Append(TextCell(ColumnLetter(i + 1) + rowIndex, text, styles.Body(new BodyStyle
+                {
+                    EdgeTop = true,
+                    EdgeBottom = true,
+                    EdgeLeft = i == 0,
+                    EdgeRight = i == columns.Count - 1
+                })));
             }
 
             return element;
@@ -258,7 +317,7 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                 Name = "TableStyleMedium2",
                 ShowFirstColumn = false,
                 ShowLastColumn = false,
-                ShowRowStripes = true,
+                ShowRowStripes = false,
                 ShowColumnStripes = false
             });
 
@@ -286,15 +345,43 @@ namespace TfsSystemInfoExtractor.Core.Reporting
             return result;
         }
 
+        /// <summary>Per-row membership of a root Work Item group: which group, its shade, and whether it is the group's first / last row.</summary>
+        private struct RowGroup
+        {
+            public int Index;
+            public bool Shade;
+            public bool IsFirst;
+            public bool IsLast;
+        }
+
+        /// <summary>Everything that decides a body cell's format: font, group shade, indent, and which of its edges lie on the group's thick outer border.</summary>
+        private struct BodyStyle
+        {
+            public bool Parent;
+            public bool Error;
+            public int Indent;
+            public bool Shade;
+            public bool EdgeTop;
+            public bool EdgeBottom;
+            public bool EdgeLeft;
+            public bool EdgeRight;
+        }
+
         /// <summary>
         /// Owns the workbook stylesheet and hands out cell-format indices. The fixed
-        /// fonts / fills / borders are declared up front; the indent-aware body formats
-        /// are created on demand and cached, so the sheet only carries the styles it uses.
+        /// fonts / fills / borders are declared up front; the group-aware body formats
+        /// (shade + thick-edge combinations + indent) are created on demand and cached,
+        /// so the sheet only carries the styles it actually uses.
         /// </summary>
         private sealed class StyleCatalog
         {
+            private const string ThickEdge = "FF000000";
+            private const string ThinGrid = "FFD0D0D0";
+
             private readonly CellFormats _cellFormats;
+            private readonly Borders _borders;
             private readonly Dictionary<string, uint> _bodyCache = new Dictionary<string, uint>();
+            private readonly Dictionary<string, uint> _borderCache = new Dictionary<string, uint>();
 
             public StyleCatalog()
             {
@@ -313,16 +400,16 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                     new Fill(new PatternFill { PatternType = PatternValues.None }),                                          // 0 (reserved)
                     new Fill(new PatternFill { PatternType = PatternValues.Gray125 }),                                        // 1 (reserved)
                     SolidFill("FF1F3864"),                                                                                   // 2 header
-                    SolidFill("FFD9E2F3"),                                                                                   // 3 parent tint
-                    SolidFill("FFF8D7DA")                                                                                    // 4 error tint
+                    SolidFill("FFD9E2F3")                                                                                    // 3 alternate root-group shade
                 )
-                { Count = 5U };
+                { Count = 4U };
 
-                var borders = new Borders(
+                _borders = new Borders(
                     new Border(new LeftBorder(), new RightBorder(), new TopBorder(), new BottomBorder(), new DiagonalBorder()), // 0 none
-                    ThinBorder()                                                                                             // 1 thin grid
+                    SideBorder(false, false, false, false)                                                                    // 1 thin grid (header)
                 )
                 { Count = 2U };
+                _borderCache[BorderKey(false, false, false, false)] = 1U;
 
                 _cellFormats = new CellFormats(
                     new CellFormat(),                                                                                       // 0 default
@@ -345,7 +432,7 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                     });
                 _cellFormats.Count = 4U;
 
-                Stylesheet = new Stylesheet(fonts, fills, borders,
+                Stylesheet = new Stylesheet(fonts, fills, _borders,
                     new CellStyleFormats(new CellFormat()), _cellFormats,
                     new CellStyles(new CellStyle { Name = "Normal", FormatId = 0U, BuiltinId = 0U }));
             }
@@ -358,32 +445,38 @@ namespace TfsSystemInfoExtractor.Core.Reporting
 
             public uint Header => 3U;
 
-            public uint Body(bool parent, bool error, int indent)
+            public uint Body(BodyStyle style)
             {
-                var key = (parent ? "p" : "-") + (error ? "e" : "-") + indent;
+                var key = string.Concat(
+                    style.Parent ? "p" : "-",
+                    style.Error ? "e" : "-",
+                    style.Shade ? "s" : "-",
+                    style.EdgeTop ? "T" : "-",
+                    style.EdgeBottom ? "B" : "-",
+                    style.EdgeLeft ? "L" : "-",
+                    style.EdgeRight ? "R" : "-",
+                    style.Indent);
                 if (_bodyCache.TryGetValue(key, out var existing))
                 {
                     return existing;
                 }
 
-                var fontId = error ? (parent ? 5U : 4U) : (parent ? 1U : 0U);
-                var fillId = error ? 4U : (parent ? 3U : 0U);
-                var applyFill = error || parent;
+                var fontId = style.Error ? (style.Parent ? 5U : 4U) : (style.Parent ? 1U : 0U);
 
                 var format = new CellFormat
                 {
                     FontId = fontId,
-                    FillId = fillId,
-                    BorderId = 1U,
+                    FillId = style.Shade ? 3U : 0U,
+                    BorderId = BorderFor(style.EdgeTop, style.EdgeBottom, style.EdgeLeft, style.EdgeRight),
                     ApplyFont = true,
                     ApplyBorder = true,
-                    ApplyFill = applyFill,
+                    ApplyFill = style.Shade,
                     ApplyAlignment = true,
                     Alignment = new Alignment
                     {
                         Vertical = VerticalAlignmentValues.Top,
                         WrapText = true,
-                        Indent = indent > 0 ? (uint)indent : 0U
+                        Indent = style.Indent > 0 ? (uint)style.Indent : 0U
                     }
                 };
 
@@ -394,6 +487,29 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                 return index;
             }
 
+            /// <summary>
+            /// A border where each side is the thick group-outline colour when that side is
+            /// on the root group's perimeter, and the thin interior grid otherwise. Cached
+            /// so at most sixteen border records are ever emitted.
+            /// </summary>
+            private uint BorderFor(bool top, bool bottom, bool left, bool right)
+            {
+                var key = BorderKey(top, bottom, left, right);
+                if (_borderCache.TryGetValue(key, out var existing))
+                {
+                    return existing;
+                }
+
+                _borders.Append(SideBorder(top, bottom, left, right));
+                var index = _borders.Count!.Value;
+                _borders.Count = index + 1U;
+                _borderCache[key] = index;
+                return index;
+            }
+
+            private static string BorderKey(bool top, bool bottom, bool left, bool right) =>
+                (top ? "T" : "-") + (bottom ? "B" : "-") + (left ? "L" : "-") + (right ? "R" : "-");
+
             private static Fill SolidFill(string argb) => new Fill(new PatternFill
             {
                 PatternType = PatternValues.Solid,
@@ -401,12 +517,18 @@ namespace TfsSystemInfoExtractor.Core.Reporting
                 BackgroundColor = new BackgroundColor { Indexed = 64U }
             });
 
-            private static Border ThinBorder() => new Border(
-                new LeftBorder(new Color { Rgb = "FFD0D0D0" }) { Style = BorderStyleValues.Thin },
-                new RightBorder(new Color { Rgb = "FFD0D0D0" }) { Style = BorderStyleValues.Thin },
-                new TopBorder(new Color { Rgb = "FFD0D0D0" }) { Style = BorderStyleValues.Thin },
-                new BottomBorder(new Color { Rgb = "FFD0D0D0" }) { Style = BorderStyleValues.Thin },
-                new DiagonalBorder());
+            private static Border SideBorder(bool top, bool bottom, bool left, bool right)
+            {
+                Color Edge(bool thick) => new Color { Rgb = thick ? ThickEdge : ThinGrid };
+                BorderStyleValues Style(bool thick) => thick ? BorderStyleValues.Thick : BorderStyleValues.Thin;
+
+                return new Border(
+                    new LeftBorder(Edge(left)) { Style = Style(left) },
+                    new RightBorder(Edge(right)) { Style = Style(right) },
+                    new TopBorder(Edge(top)) { Style = Style(top) },
+                    new BottomBorder(Edge(bottom)) { Style = Style(bottom) },
+                    new DiagonalBorder());
+            }
         }
     }
 }

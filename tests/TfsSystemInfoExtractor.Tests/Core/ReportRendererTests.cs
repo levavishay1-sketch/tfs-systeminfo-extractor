@@ -112,6 +112,67 @@ namespace TfsSystemInfoExtractor.Tests.Core
             var siCell = sheet.Worksheet.Descendants<Cell>().Single(c => c.CellReference == "E5");
             Assert.True(formats[(int)siCell.StyleIndex!.Value].Alignment!.WrapText!.Value);
         }
+
+        [Fact]
+        public void Rows_are_shaded_and_boxed_by_root_work_item_group_not_row_by_row()
+        {
+            var view = new ReportView
+            {
+                Title = "TFS System Info",
+                Columns =
+                {
+                    new ReportColumn { Key = "id", Label = "ID", Kind = ReportColumnKind.Id },
+                    new ReportColumn { Key = "type", Label = "Type", Kind = ReportColumnKind.Type },
+                    new ReportColumn { Key = "title", Label = "Title", Kind = ReportColumnKind.Text }
+                }
+            };
+            void Add(int depth, string id) => view.Rows.Add(new ReportRow
+            {
+                Depth = depth,
+                GroupStart = depth == 0,
+                Cells = { ["id"] = id, ["type"] = "T", ["title"] = id }
+            });
+            Add(0, "A");        // row 5  - group 0 (plain), first
+            Add(1, "A1");       // row 6  - group 0
+            Add(1, "A2");       // row 7  - group 0, last
+            Add(0, "B");        // row 8  - group 1 (shaded), first
+            Add(1, "B1");       // row 9  - group 1, last
+            Add(0, "C");        // row 10 - group 2 (plain), first + last
+
+            var (book, sheet) = Open(_renderer.Render(view));
+            var stylesheet = book.WorkbookStylesPart!.Stylesheet;
+            var formats = stylesheet.CellFormats!.Elements<CellFormat>().ToList();
+            var borders = stylesheet.Borders!.Elements<Border>().ToList();
+
+            CellFormat Fmt(string reference) =>
+                formats[(int)sheet.Worksheet.Descendants<Cell>().Single(c => c.CellReference == reference).StyleIndex!.Value];
+            Border Bord(string reference) => borders[(int)Fmt(reference).BorderId!.Value];
+            bool Thick(BorderPropertiesType side) => side.Style?.Value == BorderStyleValues.Thick;
+
+            // whole group shares one background: every row of group 0 is unshaded, every row of group 1 is shaded
+            foreach (var r in new[] { "A5", "B5", "C5", "A6", "B6", "C6", "A7", "B7", "C7" })
+            {
+                Assert.Equal(0U, Fmt(r).FillId!.Value);
+            }
+            foreach (var r in new[] { "A8", "B8", "C8", "A9", "B9", "C9" })
+            {
+                Assert.Equal(3U, Fmt(r).FillId!.Value);
+            }
+            Assert.Equal(0U, Fmt("A10").FillId!.Value); // group 2 back to plain
+
+            // thick box around the whole group, thin between the rows inside it
+            Assert.True(Thick(Bord("A5").TopBorder!));      // group 0 top edge
+            Assert.True(Thick(Bord("A5").LeftBorder!));     // left wall
+            Assert.False(Thick(Bord("A6").TopBorder!));     // interior row: no thick line between children
+            Assert.True(Thick(Bord("A6").LeftBorder!));     // still on the left wall
+            Assert.True(Thick(Bord("C7").BottomBorder!));   // group 0 bottom edge
+            Assert.True(Thick(Bord("C7").RightBorder!));    // right wall
+            Assert.True(Thick(Bord("A8").TopBorder!));      // next group starts its own box
+            Assert.True(Thick(Bord("A10").TopBorder!) && Thick(Bord("A10").BottomBorder!)); // lone root: fully boxed
+
+            var tableStyle = sheet.TableDefinitionParts.Single().Table.TableStyleInfo!;
+            Assert.False(tableStyle.ShowRowStripes!.Value); // no row-by-row banding
+        }
     }
 
     public class MarkdownReportRendererTests
