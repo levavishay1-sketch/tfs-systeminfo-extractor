@@ -203,9 +203,6 @@
   .view-table .tv tr.tv-root > .cell-id { border-left-color:var(--tv-rail-strong); }
   .view-table .tv tr.tv-root .tv-name { font-weight:700; }
   .view-table .tv tr.err > td { background:rgba(220,38,38,.06); }
-  /* rows shown only as hierarchy context while the "with info" filter is active */
-  .view-table .tv tr.tv-context > td { opacity:.62; }
-  .view-table .tv tr.tv-context .tv-name { font-weight:400; }
 
   /* TYPE cell now carries the hierarchy (indent + connectors + toggle) */
   .view-table .tv-type-inner { display:flex; align-items:flex-start; min-width:0; }
@@ -587,7 +584,10 @@ $('#expandAll').addEventListener('click', () => {
   else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.add('open'));
 });
 $('#collapseAll').addEventListener('click', () => {
-  if (currentView === 'table') { flat.forEach(n => { if (n._kids) collapsed.add(n.Id); }); render(); }
+  if (currentView === 'table') {
+    (function rec(nodes) { nodes.forEach(rn => { if (rn.children.length) { collapsed.add(rn.n.Id); rec(rn.children); } }); })(tableForest());
+    render();
+  }
   else document.querySelectorAll('#viewport .node.has-kids').forEach(n => n.classList.remove('open'));
 });
 
@@ -603,22 +603,43 @@ function toggleCollapse(id) {
   if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
   render();
 }
-function infoInSubtree(n) {
-  return hasInfo(n) || (n.Children || []).some(infoInSubtree);
-}
 function fieldLabel(ref) { return fieldLabels[ref] || ref; }
 function tableColumnCount() { return 5 + extraFields.length; }
 
-// Visible rows for the current filter + collapse state, each with its tree-render metadata.
+// The forest to render: the full tree, or - when the "with info" filter is active -
+// a pruned forest containing ONLY Work Items that have System Info. Removed items
+// are dropped entirely; their System-Info descendants are re-parented to the nearest
+// surviving ancestor so the hierarchy among the remaining items is preserved.
+function tableForest() {
+  if (!filterWithInfo) {
+    return roots.map(function wrap(n) { return { n: n, children: (n.Children || []).map(wrap) }; });
+  }
+  const out = [];
+  roots.forEach(r => collect(r, out));
+  function collect(n, siblingList) {
+    if (hasInfo(n)) {
+      const node = { n: n, children: [] };
+      siblingList.push(node);
+      (n.Children || []).forEach(c => collect(c, node.children));
+    } else {
+      (n.Children || []).forEach(c => collect(c, siblingList));
+    }
+  }
+  return out;
+}
+
+// Flatten the forest for the current collapse state, with per-row tree-render metadata.
 function visibleTableRows() {
   const out = [];
-  const showRoots = roots.filter(r => !filterWithInfo || infoInSubtree(r));
-  showRoots.forEach((root, ri) => walk(root, 0, [], ri === showRoots.length - 1));
-  function walk(n, depth, ancLast, isLast) {
-    const kids = (n.Children || []).filter(c => !filterWithInfo || infoInSubtree(c));
-    const expanded = !collapsed.has(n.Id);
-    out.push({ n: n, depth: depth, last: isLast, ancLast: ancLast, hasKids: kids.length > 0, expanded: expanded });
-    if (expanded) kids.forEach((c, i) => walk(c, depth + 1, ancLast.concat(isLast), i === kids.length - 1));
+  const forest = tableForest();
+  forest.forEach((rn, i) => walk(rn, 0, [], i === forest.length - 1, null));
+  function walk(rn, depth, ancLast, isLast, parentId) {
+    const expanded = !collapsed.has(rn.n.Id);
+    out.push({
+      n: rn.n, depth: depth, last: isLast, ancLast: ancLast, expanded: expanded,
+      hasKids: rn.children.length > 0, kidCount: rn.children.length, parentId: parentId
+    });
+    if (expanded) rn.children.forEach((c, i) => walk(c, depth + 1, ancLast.concat(isLast), i === rn.children.length - 1, rn.n.Id));
   }
   return out;
 }
@@ -645,7 +666,7 @@ function vTable(vp) {
   if (!rows.length) {
     const tb = el('tbody');
     const tr = el('tr');
-    const td = el('td', 'empty', 'No Work Items match the current filter.');
+    const td = el('td', 'empty', filterWithInfo ? 'No Work Items have System Info.' : 'No Work Items to show.');
     td.colSpan = tableColumnCount();
     tr.appendChild(td); tb.appendChild(tr); tbl.appendChild(tb);
     wrap.appendChild(tbl); vp.appendChild(wrap);
@@ -674,10 +695,8 @@ function vTable(vp) {
 function tableRow(r) {
   const n = r.n;
   const isRoot = r.depth === 0;
-  const contextOnly = filterWithInfo && !n.Error && !hasInfo(n);
   let cls = isRoot ? 'tv-root' : '';
   if (n.Error) cls += ' err';
-  if (contextOnly) cls += ' tv-context';
   const tr = el('tr', cls.trim() || null);
 
   // ID
@@ -703,11 +722,10 @@ function tableRow(r) {
   const tbox = el('div', 'tv-typebox');
   tbox.appendChild(badge(n));
   if (!isRoot) tbox.appendChild(el('span', 'lvl', 'L' + r.depth));
-  const totalKids = n.Children ? n.Children.length : 0;
-  if (totalKids) tbox.appendChild(el('span', 'kids', totalKids + (totalKids === 1 ? ' child' : ' children')));
-  if (n._parent != null) {
-    const pn = byId[n._parent];
-    tbox.appendChild(el('div', 'tv-parent', 'child of #' + n._parent + (pn && pn.Title ? (' - ' + pn.Title) : '')));
+  if (r.kidCount) tbox.appendChild(el('span', 'kids', r.kidCount + (r.kidCount === 1 ? ' child' : ' children')));
+  if (r.parentId != null) {
+    const pn = byId[r.parentId];
+    tbox.appendChild(el('div', 'tv-parent', 'child of #' + r.parentId + (pn && pn.Title ? (' - ' + pn.Title) : '')));
   }
   tinner.appendChild(tbox);
   cType.appendChild(tinner);
@@ -777,7 +795,7 @@ function updateFilterUi() {
   btn.classList.toggle('active', on);
   btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   $('#filterBanner').hidden = !on;
-  if (on) $('#filterBannerText').textContent = 'Showing only Work Items that have System Info (parent rows shown greyed for context).';
+  if (on) $('#filterBannerText').textContent = 'Filtered to Work Items that have System Info. Other items are hidden.';
 }
 
 /* additional TFS field columns */
