@@ -21,10 +21,14 @@ namespace TfsSystemInfoExtractor.Core.Reporting
         byte[] RenderPdf(string html, PdfPrintOptions options);
     }
 
+    /// <summary>
+    /// Print options for <see cref="IBrowserPdfEngine.RenderPdf"/>. Page size and
+    /// orientation are driven entirely by the document's own CSS <c>@page</c> rule
+    /// (the HTML renderer sizes it to one continuous page), so there is nothing to
+    /// configure here yet - the type is the seam for future options.
+    /// </summary>
     public sealed class PdfPrintOptions
     {
-        public static readonly PdfPrintOptions LandscapeReport = new PdfPrintOptions { Landscape = true };
-
-        public bool Landscape { get; set; } = true;
+        public static readonly PdfPrintOptions Default = new PdfPrintOptions();
     }
 }

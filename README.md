@@ -91,21 +91,21 @@ The browser opens at `http://localhost:5050`. Paste work item IDs (comma /
 space / newline separated) or upload a `.txt` / `.csv`, click **Run**, watch
 the live log, then browse the result. The result is shown as a single grouped
 table (one `<tbody>` per root Work Item, hierarchy in the Type column). It
-scrolls horizontally when it is wider than the viewport and collapses to a
-stacked card layout on narrow screens, so it stays readable with any number
-of extra columns.
+always fits the viewport width - adding extra columns shrinks every column
+proportionally and wraps the text rather than introducing a horizontal
+scrollbar.
 
-The **with info** count is a toggle that filters to only the Work Items that
-have System Info, and **Fields** lets advanced users add extra columns for
+The **with system info** count is a toggle that filters to only the Work Items
+that have System Info, and **Fields** lets advanced users add extra columns for
 any additional TFS field found on the extracted items (the list comes from
 the TFS field catalogue, `_apis/wit/fields`; selections persist per browser).
 The default columns are unchanged; the hierarchy is shown in the Type column.
 
 ## Export
 
-**Download / Export** offers **Excel** (the default), **PDF**, **PDF System
-Info**, **JSON** (raw data) and **Markdown**. Nothing is generated until you
-click one - loading, browsing, filtering and changing columns produce no files.
+**Download / Export** offers **Excel** (the default), **PDF**, **JSON** and
+**Markdown**. Nothing is generated until you click one - loading, browsing,
+filtering and changing columns produce no files.
 
 At the moment of the click the browser hands the server the exact view it is
 showing (columns, order, active filter, hierarchy, the added fields, and the
@@ -121,13 +121,14 @@ that is streamed to you and also saved to `Export:OutputDirectory`.
   content-sized, and every value wraps so long System Info / extra fields are
   fully readable and never truncated. Built on `DocumentFormat.OpenXml` only
   (MIT - no commercial dependency, no Excel install needed).
-- **PDF / PDF System Info** are produced by the machine's own headless
-  **Edge or Chrome** (`--print-to-pdf`) rendering the UI's own HTML/CSS - so
-  the PDF looks like the table, and Hebrew / RTL / mixed text render
-  correctly (Chromium's bidi). No PDF library, no bundled browser, no
-  licence. "PDF System Info" is the same view with the System-Info-only
-  filter applied. If no browser is found, PDF export returns a clear message
-  and Excel / Markdown still work.
+- **PDF** is produced by the machine's own headless **Edge or Chrome**
+  (`--print-to-pdf`) rendering the UI's own HTML/CSS - so the PDF looks like
+  the table, and Hebrew / RTL / mixed text render correctly (Chromium's bidi).
+  It is one single continuous page as tall and as wide as the whole table
+  needs: no page size, no page breaks between rows or groups (an oversized
+  table is scaled down to still fit one page). No PDF library, no bundled
+  browser, no licence. If no browser is found, PDF export returns a clear
+  message and Excel / Markdown still work.
 - Adding a new format = one new `IReportRenderer` + one DI line; no change to
   the domain, the extraction pipeline or the UI's view logic.
 

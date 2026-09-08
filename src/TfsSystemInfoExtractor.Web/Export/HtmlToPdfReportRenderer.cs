@@ -14,40 +14,64 @@ namespace TfsSystemInfoExtractor.Web.Export
     /// plus a small print-only override, and hands that to <see cref="IBrowserPdfEngine"/>.
     /// There is no PDF-specific table renderer and no re-derivation of what to show -
     /// the browser already decided, and Chromium renders it (Hebrew/RTL included).
+    /// <para>
+    /// The output is a single continuous page: the composed document lays the table out
+    /// at the same width as the on-screen results area, then a tiny inline script measures
+    /// the rendered content and sets <c>@page { size }</c> to exactly that, so the whole
+    /// table stays on one page with no page breaks between rows or groups.
+    /// </para>
     /// </summary>
     public sealed class HtmlToPdfReportRenderer : IReportRenderer
     {
-        // The print sheet only does two things: page setup, and making the on-screen
-        // table (which scrolls horizontally and clamps long cells) fit a printed page.
-        // It changes no colours, borders, spacing or structure - that all comes from
-        // the page's own stylesheet applied to the exact table markup.
+        // Used when the client did not report the on-screen width.
+        private const int DefaultLayoutWidthPx = 1100;
+
+        // Chromium / the PDF format cap a page at 200 inches (14400pt ~= 19200px). Stay
+        // safely under it: if the table is somehow taller/wider than this, the fit script
+        // scales the whole document down so it still lands on ONE page.
+        private const int MaxPageDimensionPx = 18000;
+
+        // The print sheet only does page setup and un-clamps the on-screen "show more"
+        // truncation of long System Info cells. It changes no colours, borders, spacing,
+        // fonts or structure - that all comes from the page's own stylesheet applied to
+        // the exact table markup.
         private const string PrintCss = @"
-@page { size: A4 landscape; margin: 8mm 7mm 11mm; }
 html, body { background: var(--bg, #fff) !important; margin: 0; }
-body.pdf-export { padding: 0; }
-body.pdf-export > .print-header { margin: 0 0 8px; }
+body.pdf-export { padding: 18px 20px; }
+body.pdf-export > .print-header { margin: 0 0 10px; }
 body.pdf-export > .print-header h1 { margin: 0; font-size: 15px; font-weight: 700; }
 body.pdf-export > .print-header .print-sub { font-size: 10.5px; color: var(--muted, #555); margin-top: 2px; }
-/* fit the page: no horizontal scroll, long cells not clamped. The table keeps its
-   fixed layout and the columns keep their percentage widths, so proportions match the UI. */
-.view-table .tv-wrap { overflow: visible !important; width: auto !important; }
-.view-table table.tv { width: 100% !important; min-width: 0 !important; }
-/* re-assert the real table roles: the print engine must never see the on-screen
-   responsive collapse (that rule is screen-only, this is a hard guarantee). */
-.view-table .tv { display: table !important; }
-.view-table .tv colgroup { display: table-column-group !important; }
-.view-table .tv col { display: table-column !important; }
-.view-table .tv thead { display: table-header-group !important; position: static !important; left: auto !important; }
-.view-table .tv tbody { display: table-row-group !important; }
-.view-table .tv tr { display: table-row !important; break-inside: avoid; }
-.view-table .tv th, .view-table .tv td { display: table-cell !important; }
-.view-table .tv td::before { content: none !important; }
-.view-table .tv-guide { display: block !important; }
-.view-table .tv-parent { display: none !important; }
+.view-table .tv-wrap { overflow: visible !important; }
 .view-table .tv thead th { position: static !important; }
 .view-table .tv-si.clamped .body { max-height: none !important; -webkit-mask-image: none !important; mask-image: none !important; }
 .view-table .tv-si .more { display: none !important; }
 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+";
+
+        // Runs synchronously while the document parses (before the print snapshot): it
+        // measures the fully laid-out content and rewrites the @page rule so the PDF is
+        // one page exactly as tall and as wide as the table needs. If the content is
+        // bigger than a PDF page can be, it scales the whole document down to fit - still
+        // one page, never a page break.
+        private const string FitToOnePageScript = @"
+(function () {
+  var doc = document.documentElement, b = document.body, cap = __CAP__;
+  function measure() {
+    return {
+      w: Math.max(b.scrollWidth, doc.scrollWidth, __W__),
+      h: Math.max(b.scrollHeight, doc.scrollHeight, b.offsetHeight)
+    };
+  }
+  var m = measure();
+  if (m.h > cap || m.w > cap) {
+    b.style.zoom = Math.min(cap / m.h, cap / m.w) * 0.9;
+    m = measure();
+  }
+  var w = Math.min(Math.ceil(m.w) + 2, cap);
+  var h = Math.min(Math.ceil(m.h) + 40, cap);
+  var s = document.getElementById('pdf-page-size');
+  if (s) { s.textContent = '@page { size: ' + w + 'px ' + h + 'px; margin: 0; }'; }
+})();
 ";
 
         private static readonly Regex StyleBlock =
@@ -72,7 +96,7 @@ body.pdf-export > .print-header .print-sub { font-size: 10.5px; color: var(--mut
         {
             view.Validate();
             var html = Compose(view);
-            var bytes = _engine.RenderPdf(html, PdfPrintOptions.LandscapeReport);
+            var bytes = _engine.RenderPdf(html, PdfPrintOptions.Default);
             return new ExportArtifact(
                 ExportFormat.Pdf,
                 ExportFileNaming.ForTimestamp("pdf"),
@@ -83,6 +107,7 @@ body.pdf-export > .print-header .print-sub { font-size: 10.5px; color: var(--mut
         private string Compose(ReportView view)
         {
             var body = ScriptBlock.Replace(view.Html ?? string.Empty, string.Empty);
+            var layoutWidth = view.LayoutWidthPx is int w && w > 200 ? w : DefaultLayoutWidthPx;
 
             var sb = new StringBuilder();
             sb.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">");
@@ -95,6 +120,11 @@ body.pdf-export > .print-header .print-sub { font-size: 10.5px; color: var(--mut
             }
 
             sb.Append("<style>").Append(PrintCss).Append("</style>");
+            // lay the table out at the same content width the user is looking at (plus the
+            // body padding, since box-sizing is border-box), so it wraps identically
+            sb.Append("<style>body.pdf-export { width: ").Append(layoutWidth + 40).Append("px; }</style>");
+            // placeholder the fit-to-one-page script rewrites once the content is measured
+            sb.Append("<style id=\"pdf-page-size\">@page { margin: 0; }</style>");
             sb.Append("</head><body class=\"viewport view-table pdf-export\">");
 
             sb.Append("<div class=\"print-header\"><h1>").Append(Escape(view.Title)).Append("</h1>");
@@ -112,6 +142,11 @@ body.pdf-export > .print-header .print-sub { font-size: 10.5px; color: var(--mut
 
             sb.Append("</div>");
             sb.Append(body);
+            sb.Append("<script>")
+              .Append(FitToOnePageScript
+                  .Replace("__W__", layoutWidth.ToString())
+                  .Replace("__CAP__", MaxPageDimensionPx.ToString()))
+              .Append("</script>");
             sb.Append("</body></html>");
             return sb.ToString();
         }

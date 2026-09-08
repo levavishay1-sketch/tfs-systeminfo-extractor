@@ -99,11 +99,8 @@
     background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px;
     box-shadow:0 8px 24px rgba(0,0,0,.16); }
   .menu button { display:flex; width:100%; align-items:baseline; gap:8px; border:none; background:none;
-    color:var(--text); font:inherit; text-align:left; padding:8px 10px; border-radius:7px; cursor:pointer; }
+    color:var(--text); font:inherit; font-weight:600; text-align:left; padding:8px 12px; border-radius:7px; cursor:pointer; }
   .menu button:hover { background:var(--surface-2); }
-  .menu button .tag { margin-left:auto; font-size:10.5px; font-weight:700; color:var(--accent-2);
-    text-transform:uppercase; letter-spacing:.4px; }
-  .menu button small { color:var(--muted); font-size:11px; }
 
   /* clickable filter pill + toolbar extras */
   .statbtn { cursor:pointer; font:inherit; }
@@ -133,17 +130,16 @@
   .fieldchip button:hover { color:var(--bad); }
 
   /* results table - grouped tree-table (the only result presentation) */
-  /* the wrapper owns the horizontal scroll: whatever the table's width, it never
-     pushes the card or the page wider than the viewport. */
-  .view-table .tv-wrap { width:100%; max-width:100%; overflow-x:auto; overflow-y:hidden;
-    overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
+  /* The table always fits the viewport width - never a horizontal scrollbar. With
+     table-layout:fixed the inline <col> percentage widths from vTable() shrink every
+     column proportionally as extra fields are added; cells wrap and rows grow taller
+     so the text stays readable. */
+  .view-table .tv-wrap { width:100%; max-width:100%; }
   .view-table table.tv { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12.5px; }
-  /* vTable() sets an inline min-width (sum of the per-column design widths) and inline
-     <col> widths, so default columns stay readable and extra columns scroll into view
-     instead of being squeezed. */
-  .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; vertical-align:top; overflow-wrap:anywhere; }
+  .view-table .tv th, .view-table .tv td { text-align:left; padding:8px 10px; vertical-align:top;
+    overflow-wrap:anywhere; word-break:break-word; }
   .view-table .tv thead th { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px;
-    background:var(--surface); position:sticky; top:0; z-index:1; white-space:nowrap; border-bottom:1px solid var(--border); }
+    background:var(--surface); position:sticky; top:0; z-index:1; border-bottom:1px solid var(--border); }
   .view-table .tv .cell-id a { font-weight:600; }
   .view-table .tv .cell-state { color:var(--muted); }
   .view-table .tv .cell-extra { color:var(--text); font-size:12px; }
@@ -193,30 +189,6 @@
     background:none; border:none; padding:0; cursor:pointer; }
   .view-table .tv-si .none { color:var(--muted); font-style:italic; }
 
-  /* Narrow screens: drop the columnar layout and stack each row as a labelled card so
-     the table stays usable on a phone / split window. Screen-only, so print and the
-     PDF export always keep the real <table>. The inline min-width from vTable() is
-     cleared here so the stacked cards wrap to the viewport no matter how many extra
-     fields are selected. */
-  @media screen and (max-width:760px) {
-    .view-table .tv-wrap { overflow-x:visible; }
-    .view-table table.tv { min-width:0 !important; width:100% !important; }
-    .view-table .tv, .view-table .tv thead, .view-table .tv tbody, .view-table .tv tr, .view-table .tv td { display:block; width:auto; }
-    .view-table .tv thead { position:absolute; left:-9999px; }
-    .view-table .tv colgroup { display:none; }
-    .view-table .tv-gap { display:none; }
-    .view-table .tv-grp { border:1px solid var(--border); border-left:3px solid var(--tv-rail); border-radius:10px;
-      margin-bottom:14px; overflow:hidden; }
-    .view-table .tv-grp > tr { padding:8px 10px; }
-    .view-table .tv-grp > tr + tr { border-top:1px solid var(--border); }
-    .view-table .tv tr.tv-root > td { border-top:none; }
-    .view-table .tv td { border:none !important; padding:3px 0; }
-    .view-table .tv td::before { content:attr(data-label) ':\A0'; font-weight:600; color:var(--muted); }
-    .view-table .tv td.cell-type::before { content:''; }
-    .view-table .tv .cell-id { border-left:none; }
-    .view-table .tv-guide { display:none; }
-    .view-table .tv-parent { display:block; }
-  }
 
 </style>
 </head>
@@ -258,7 +230,7 @@
       <div class='bar2'>
         <div class='stats'>
           <span class='stat'><b id='statTotal'>0</b> items</span>
-          <button class='stat ok statbtn' id='filterInfoBtn' type='button' aria-pressed='false'><b id='statInfo'>0</b> with info</button>
+          <button class='stat ok statbtn' id='filterInfoBtn' type='button' aria-pressed='false'><b id='statInfo'>0</b> with system info</button>
           <span class='stat bad' id='statErrWrap' hidden><b id='statErr'>0</b> errors</span>
           <span class='stat'>depth <b id='statDepth'>0</b></span>
         </div>
@@ -273,10 +245,9 @@
         <span class='exportwrap'>
           <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
           <div class='menu' id='exportMenu' hidden>
-            <button type='button' data-fmt='xlsx'>Excel <small>(current table)</small><span class='tag'>default</span></button>
-            <button type='button' data-fmt='pdf'>PDF <small>(current table)</small></button>
-            <button type='button' data-fmt='pdf-info'>PDF System Info <small>(only items with System Info)</small></button>
-            <button type='button' data-fmt='json'>JSON <small>(raw data)</small></button>
+            <button type='button' data-fmt='xlsx'>Excel</button>
+            <button type='button' data-fmt='pdf'>PDF</button>
+            <button type='button' data-fmt='json'>JSON</button>
             <button type='button' data-fmt='md'>Markdown</button>
           </div>
         </span>
@@ -434,7 +405,7 @@ $('#collapseAll').addEventListener('click', () => {
   render();
 });
 
-/* the results table: grouped tree-table, "with info" filter, optional extra columns */
+/* the results table: grouped tree-table, "with system info" filter, optional extra columns */
 let filterWithInfo = false;
 let resultGeneratedAt = '';
 let availableFields = [];   // [{ ReferenceName, DisplayName }]
@@ -494,17 +465,15 @@ function vTable(vp, infoFilter) {
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
 
-  // Each column has a design width in px: the 5 default columns plus one per selected
-  // extra field. Their sum is the table's min-width, so when it exceeds the viewport
-  // the wrapper scrolls horizontally and every column keeps a readable size instead of
-  // being squeezed. The widths are emitted as percentages of that sum so the same
-  // proportions hold whether the table is scrolling (renders at min-width = the sum),
-  // filling a wider viewport (width:100%, columns scale up), or printed to a page.
-  const DEFAULT_WIDTHS = [54, 220, 260, 82, 300];   // ID, Type, Title, State, System Info
-  const EXTRA_WIDTH = 150;                          // per additional TFS field
+  // Every column gets a relative weight - the 5 default columns plus one per selected
+  // extra field. The weights are emitted as <col> percentages; with table-layout:fixed
+  // and width:100% the table always fills (and never exceeds) the viewport, so adding
+  // extra fields shrinks every column proportionally. Cells wrap and rows grow taller
+  // rather than the table scrolling.
+  const DEFAULT_WIDTHS = [62, 210, 230, 78, 300];   // ID, Type, Title, State, System Info
+  const EXTRA_WIDTH = 125;                          // per additional TFS field
   const widths = DEFAULT_WIDTHS.concat(extraFields.map(() => EXTRA_WIDTH));
   const total = widths.reduce((a, b) => a + b, 0);
-  tbl.style.minWidth = total + 'px';
 
   const cg = document.createElement('colgroup');
   const classes = ['c-id', 'c-type', 'c-title', 'c-state', 'c-si'].concat(extraFields.map(() => 'c-extra'));
@@ -637,7 +606,7 @@ function tableRow(r) {
   return tr;
 }
 
-/* filter: "with info" */
+/* filter: "with system info" */
 $('#filterInfoBtn').addEventListener('click', () => {
   filterWithInfo = !filterWithInfo;
   render();
@@ -755,38 +724,27 @@ function currentThemeCss() {
   return vars ? (':root{' + vars + '}') : '';
 }
 
-// The report view = exactly what the results table is showing (optionally with the
-// System-Info-only filter forced on for the "PDF System Info" action).
-function buildReportView(infoOnly) {
-  const effectiveFilter = infoOnly || filterWithInfo;
+// The report view = exactly what the results table is showing right now: the same
+// rows, filter, hierarchy, column order and selected extra fields. Renderers only
+// format this; they never re-decide what to show.
+function buildReportView() {
   const cols = currentColumns();
-  const rowMeta = visibleTableRows(effectiveFilter);
-  const rows = rowMeta.map(r => {
+  const rows = visibleTableRows(filterWithInfo).map(r => {
     const cells = {};
     cols.forEach(c => { cells[c.key] = cellText(r.n, c.key); });
     return { depth: r.depth, groupStart: r.depth === 0, error: !!r.n.Error, cells: cells };
   });
 
-  // The literal rendered table, for the HTML-based (PDF) renderer. When the export
-  // filter matches the on-screen filter this is byte-for-byte the current #viewport.
-  let html;
-  if (effectiveFilter === filterWithInfo) {
-    html = $('#viewport').innerHTML;
-  } else {
-    const holder = document.createElement('div');
-    holder.className = 'viewport view-table';
-    vTable(holder, effectiveFilter);
-    html = holder.innerHTML;
-  }
-
+  const viewport = $('#viewport');
   return {
     title: 'TFS System Info',
-    subtitle: effectiveFilter ? 'Filtered to Work Items that have System Info' : null,
+    subtitle: filterWithInfo ? 'Filtered to Work Items that have System Info' : null,
     generatedAt: resultGeneratedAt ? resultGeneratedAt.replace('T', ' ') : '',
     columns: cols,
     rows: rows,
-    html: html,
-    themeCss: currentThemeCss()
+    html: viewport.innerHTML,                                  // the exact rendered <table>
+    themeCss: currentThemeCss(),
+    layoutWidthPx: Math.round(viewport.getBoundingClientRect().width)   // so the PDF wraps text exactly as on screen
   };
 }
 
@@ -820,9 +778,7 @@ async function exportViaBlob(format, view) {
 function doExport(kind) {
   if (!jobId) return;
   if (kind === 'json') { location.href = '/api/result?jobId=' + jobId + '&download=1'; return; }
-  const infoOnly = kind === 'pdf-info';
-  const format = (kind === 'pdf' || kind === 'pdf-info') ? 'pdf' : kind; // 'xlsx' | 'md' | 'pdf'
-  exportViaBlob(format, buildReportView(infoOnly));
+  exportViaBlob(kind, buildReportView()); // kind is 'xlsx' | 'pdf' | 'md'
 }
 updateCount();
 </script>

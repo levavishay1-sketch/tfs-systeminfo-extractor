@@ -37,6 +37,14 @@ namespace TfsSystemInfoExtractor.Core.Reporting
         /// </summary>
         public string? ThemeCss { get; set; }
 
+        /// <summary>
+        /// Width, in CSS pixels, of the on-screen results area the <see cref="Html"/> was
+        /// measured in. An HTML-based renderer lays the table out at this width so text
+        /// wraps exactly as the user sees it (and, for the PDF, so the single continuous
+        /// page is sized correctly). Null falls back to a sensible default.
+        /// </summary>
+        public int? LayoutWidthPx { get; set; }
+
         public void Validate()
         {
             if (Columns.Count == 0)

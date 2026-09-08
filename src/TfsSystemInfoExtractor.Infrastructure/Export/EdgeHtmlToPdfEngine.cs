@@ -36,7 +36,7 @@ namespace TfsSystemInfoExtractor.Infrastructure.Export
         public byte[] RenderPdf(string html, PdfPrintOptions printOptions)
         {
             if (html == null) throw new ArgumentNullException(nameof(html));
-            printOptions = printOptions ?? PdfPrintOptions.LandscapeReport;
+            printOptions = printOptions ?? PdfPrintOptions.Default;
 
             var browser = _browserPath.Value ?? throw new BrowserNotFoundException();
 

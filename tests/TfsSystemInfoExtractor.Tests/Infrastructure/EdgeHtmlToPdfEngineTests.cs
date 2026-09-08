@@ -39,7 +39,7 @@ namespace TfsSystemInfoExtractor.Tests.Infrastructure
                 return; // no browser on this machine - nothing more to check
             }
 
-            var bytes = engine.RenderPdf(HebrewHtml, PdfPrintOptions.LandscapeReport);
+            var bytes = engine.RenderPdf(HebrewHtml, PdfPrintOptions.Default);
             var latin1 = Encoding.GetEncoding(28591).GetString(bytes);
 
             Assert.True(bytes.Length > 2000);
