@@ -189,6 +189,39 @@
     background:none; border:none; padding:0; cursor:pointer; }
   .view-table .tv-si .none { color:var(--muted); font-style:italic; }
 
+  /* SOURCE CONTROL column + attached detail row (optional, off by default) */
+  #scBtn.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .view-table .cell-sc { font-size:12px; }
+  .view-table .tv-sc { display:flex; align-items:flex-start; gap:6px; min-width:0; }
+  .view-table .tv-sc-toggle { flex:none; width:16px; height:16px; margin-top:1px; padding:0; border:none;
+    background:none; cursor:pointer; position:relative; }
+  .view-table .tv-sc-toggle::before { content:''; position:absolute; top:50%; left:50%; width:0; height:0;
+    border-left:5px solid var(--muted); border-top:4px solid transparent; border-bottom:4px solid transparent;
+    transform:translate(-50%,-50%); transition:transform .12s; }
+  .view-table .tv-sc-toggle.open::before { transform:translate(-50%,-50%) rotate(90deg); }
+  .view-table .tv-sc-sum { min-width:0; display:flex; flex-wrap:wrap; gap:3px 5px; align-items:baseline; }
+  .view-table .tv-sc-sum .scpill { font-size:10.5px; font-weight:600; color:var(--muted); white-space:nowrap;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:0 6px; }
+  .view-table .tv-sc-none { color:var(--muted); }
+  /* the detail row sits in the same group tbody, attached under its Work Item row */
+  .view-table .tv-grp > tr.has-sc-open > td { border-bottom:none; }
+  .view-table .tv-grp > tr.tv-sc-row > td { padding:0; background:var(--surface-2); }
+  .view-table .tv-grp > tr.tv-sc-row:hover > td { background:var(--surface-2); }
+  .view-table .tv-sc-detail { padding:10px 14px 12px; border-left:3px solid var(--tv-rail-strong); }
+  .view-table .tv-sc-section + .tv-sc-section { margin-top:10px; }
+  .view-table .tv-sc-h { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--muted); margin-bottom:6px; }
+  .view-table .tv-sc-repo + .tv-sc-repo { margin-top:8px; }
+  .view-table .tv-sc-repo-name { font-size:11.5px; font-weight:650; margin-bottom:3px; }
+  .view-table .tv-sc-commits { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
+  .view-table .tv-sc-commits li { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 8px;
+    font-size:12px; padding-left:10px; border-left:2px solid var(--border); }
+  .view-table .tv-sc-sha { font-family:'Cascadia Code', Consolas, monospace; font-size:11px; font-weight:600;
+    color:var(--accent-2); text-decoration:none; flex:none; }
+  .view-table a.tv-sc-sha:hover { text-decoration:underline; }
+  .view-table .tv-sc-msg { min-width:0; word-break:break-word; }
+  .view-table .tv-sc-meta { font-size:11px; color:var(--muted); flex:none; }
+  .view-table .tv-sc-devs { font-size:11.5px; color:var(--muted); }
 
 </style>
 </head>
@@ -242,6 +275,7 @@
           <button class='btn ghost sm' id='fieldsBtn' type='button'>Fields</button>
           <div class='fieldpanel' id='fieldPanel' hidden></div>
         </span>
+        <button class='btn ghost sm' id='scBtn' type='button' aria-pressed='false'>Source Control</button>
         <span class='exportwrap'>
           <button class='btn ok sm' id='exportBtn' type='button'>Download / Export</button>
           <div class='menu' id='exportMenu' hidden>
@@ -355,6 +389,7 @@ async function loadResults() {
     });
   })(roots, 0, null, []);
   collapsed = new Set();
+  scExpanded = new Set();
 
   stats = { total: flat.length, withInfo: 0, errors: 0, depth: 0 };
   flat.forEach(n => {
@@ -373,6 +408,7 @@ async function loadResults() {
   $('#fieldsWrap').hidden = availableFields.length === 0;
   $('#expandAll').hidden = $('#collapseAll').hidden = stats.depth === 0;
   updateFilterUi();
+  updateScUi();
   renderFieldChips();
   render();
 }
@@ -414,12 +450,55 @@ let extraFields = [];       // referenceNames, persisted
 try { const s = JSON.parse(localStorage.getItem('tfsExtraFields') || '[]'); if (Array.isArray(s)) extraFields = s.filter(x => typeof x === 'string'); } catch (e) {}
 function saveExtraFields() { try { localStorage.setItem('tfsExtraFields', JSON.stringify(extraFields)); } catch (e) {} }
 
+/* Source Control: an optional column right after System Info, off by default and
+   completely independent of the extra-field selection above. Its per-Work-Item
+   details expand into an attached row inside the same group. */
+let scOn = false;
+try { scOn = localStorage.getItem('tfsSourceControl') === '1'; } catch (e) {}
+let scExpanded = new Set();  // Work Item ids whose detail row is open
+function saveSc() { try { localStorage.setItem('tfsSourceControl', scOn ? '1' : '0'); } catch (e) {} }
+
 function toggleCollapse(id) {
   if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
   render();
 }
+function toggleScExpand(id) {
+  if (scExpanded.has(id)) scExpanded.delete(id); else scExpanded.add(id);
+  render();
+}
 function fieldLabel(ref) { return fieldLabels[ref] || ref; }
-function tableColumnCount() { return 5 + extraFields.length; }
+function tableColumnCount() { return 5 + (scOn ? 1 : 0) + extraFields.length; }
+
+// Normalises a node's SourceControlInfo (repositories / commits / contributors) into
+// what the column needs. Returns null when there is nothing to show - so no empty
+// expander appears. Add PRs / branches / builds here as SourceControlInfo grows.
+function scData(n) {
+  const sc = n && n.SourceControl;
+  if (!sc) return null;
+  const commits = sc.Commits || [];
+  const repos = sc.Repositories || [];
+  const contributors = (sc.Contributors || []).map(d => d.DisplayName || d.Name).filter(Boolean);
+  const commitDevs = commits.map(c => c.Author && (c.Author.DisplayName || c.Author.Name)).filter(Boolean);
+  const devs = new Set(contributors.length ? contributors : commitDevs);
+  const repoKeys = repos.length ? repos.map(rp => rp.Id)
+    : Array.from(new Set(commits.map(c => c.RepositoryId).filter(Boolean)));
+  if (!commits.length && !repoKeys.length && !devs.size) return null;
+  return { sc: sc, commits: commits, repos: repos,
+    nCommits: commits.length, nRepos: repoKeys.length, nDevs: devs.size };
+}
+function scSummaryText(d) {
+  const parts = [];
+  if (d.nCommits) parts.push(d.nCommits + (d.nCommits === 1 ? ' commit' : ' commits'));
+  if (d.nRepos) parts.push(d.nRepos + (d.nRepos === 1 ? ' repo' : ' repos'));
+  if (d.nDevs) parts.push(d.nDevs + (d.nDevs === 1 ? ' dev' : ' devs'));
+  return parts.join(' · ');
+}
+function scFmtDate(s) {
+  const dt = new Date(s);
+  if (isNaN(dt.getTime())) return String(s);
+  const p = x => String(x).padStart(2, '0');
+  return dt.getFullYear() + '-' + p(dt.getMonth() + 1) + '-' + p(dt.getDate()) + ' ' + p(dt.getHours()) + ':' + p(dt.getMinutes());
+}
 
 // The forest to render. With infoFilter, a pruned forest containing ONLY Work Items
 // that have System Info: removed items are dropped entirely and their System-Info
@@ -465,18 +544,23 @@ function vTable(vp, infoFilter) {
   const wrap = el('div', 'tv-wrap');
   const tbl = el('table', 'tv');
 
-  // Every column gets a relative weight - the 5 default columns plus one per selected
-  // extra field. The weights are emitted as <col> percentages; with table-layout:fixed
-  // and width:100% the table always fills (and never exceeds) the viewport, so adding
-  // extra fields shrinks every column proportionally. Cells wrap and rows grow taller
-  // rather than the table scrolling.
+  // Every column gets a relative weight - the 5 default columns, an optional Source
+  // Control column, then one per selected extra field. The weights are emitted as
+  // <col> percentages; with table-layout:fixed and width:100% the table always fills
+  // (and never exceeds) the viewport, so adding columns shrinks every column
+  // proportionally. Cells wrap and rows grow taller rather than the table scrolling.
   const DEFAULT_WIDTHS = [62, 210, 230, 78, 300];   // ID, Type, Title, State, System Info
+  const SC_WIDTH = 165;                             // Source Control (when enabled)
   const EXTRA_WIDTH = 125;                          // per additional TFS field
-  const widths = DEFAULT_WIDTHS.concat(extraFields.map(() => EXTRA_WIDTH));
+  const widths = DEFAULT_WIDTHS
+    .concat(scOn ? [SC_WIDTH] : [])
+    .concat(extraFields.map(() => EXTRA_WIDTH));
   const total = widths.reduce((a, b) => a + b, 0);
 
   const cg = document.createElement('colgroup');
-  const classes = ['c-id', 'c-type', 'c-title', 'c-state', 'c-si'].concat(extraFields.map(() => 'c-extra'));
+  const classes = ['c-id', 'c-type', 'c-title', 'c-state', 'c-si']
+    .concat(scOn ? ['c-sc'] : [])
+    .concat(extraFields.map(() => 'c-extra'));
   classes.forEach((cls, i) => {
     const col = document.createElement('col');
     col.className = cls;
@@ -488,6 +572,7 @@ function vTable(vp, infoFilter) {
   const thead = el('thead');
   const htr = el('tr');
   ['ID', 'Type', 'Title', 'State', 'System Info'].forEach(h => htr.appendChild(el('th', null, h)));
+  if (scOn) htr.appendChild(el('th', null, 'Source Control'));
   extraFields.forEach(ref => htr.appendChild(el('th', null, fieldLabel(ref))));
   thead.appendChild(htr);
   tbl.appendChild(thead);
@@ -515,6 +600,10 @@ function vTable(vp, infoFilter) {
       tbl.appendChild(group);
     }
     group.appendChild(tableRow(r));
+    if (scOn) {
+      const d = scData(r.n);
+      if (d && scExpanded.has(r.n.Id)) group.appendChild(scDetailRow(r, d));
+    }
   });
 
   wrap.appendChild(tbl);
@@ -594,6 +683,31 @@ function tableRow(r) {
   cSi.appendChild(si);
   tr.appendChild(cSi);
 
+  // SOURCE CONTROL - compact summary; expands into an attached detail row (see vTable)
+  if (scOn) {
+    const cSc = el('td', 'cell-sc'); cSc.dataset.label = 'Source Control';
+    const d = scData(n);
+    if (d) {
+      const box = el('div', 'tv-sc');
+      const expanded = scExpanded.has(n.Id);
+      const tg = el('button', 'tv-sc-toggle' + (expanded ? ' open' : '')); tg.type = 'button';
+      tg.setAttribute('aria-label', 'toggle source control details');
+      tg.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      tg.addEventListener('click', ev => { ev.stopPropagation(); toggleScExpand(n.Id); });
+      box.appendChild(tg);
+      const sum = el('div', 'tv-sc-sum');
+      [[d.nCommits, 'commit'], [d.nRepos, 'repo'], [d.nDevs, 'dev']].forEach(pair => {
+        if (pair[0]) sum.appendChild(el('span', 'scpill', pair[0] + ' ' + pair[1] + (pair[0] === 1 ? '' : 's')));
+      });
+      box.appendChild(sum);
+      cSc.appendChild(box);
+      if (expanded) tr.classList.add('has-sc-open');
+    } else {
+      cSc.appendChild(el('span', 'tv-sc-none', '—'));
+    }
+    tr.appendChild(cSc);
+  }
+
   // EXTRA FIELDS (opt-in columns)
   extraFields.forEach(ref => {
     const c = el('td', 'cell-extra'); c.dataset.label = fieldLabel(ref);
@@ -604,6 +718,68 @@ function tableRow(r) {
   });
 
   return tr;
+}
+
+// The expandable detail for one Work Item's source control. It lives in the same
+// group <tbody>, directly after its Work Item row, spanning all columns - so the
+// hierarchy, grouping, colours and borders are untouched. Sections are added per
+// facet, ready for pull requests / branches / builds later.
+function scDetailRow(r, d) {
+  const tr = el('tr', 'tv-sc-row');
+  const td = el('td'); td.colSpan = tableColumnCount();
+  td.appendChild(scDetail(d));
+  tr.appendChild(td);
+  return tr;
+}
+function scDetail(d) {
+  const wrap = el('div', 'tv-sc-detail');
+
+  if (d.commits.length) {
+    const sec = el('div', 'tv-sc-section');
+    sec.appendChild(el('div', 'tv-sc-h', 'Commits'));
+    const repoName = {};
+    d.repos.forEach(rp => { repoName[rp.Id] = rp.Name; });
+    const byRepo = new Map();
+    d.commits.forEach(c => {
+      const key = c.RepositoryId || '';
+      if (!byRepo.has(key)) byRepo.set(key, []);
+      byRepo.get(key).push(c);
+    });
+    byRepo.forEach((commits, key) => {
+      const rb = el('div', 'tv-sc-repo');
+      rb.appendChild(el('div', 'tv-sc-repo-name', repoName[key] || key || 'Repository'));
+      const ul = el('ul', 'tv-sc-commits');
+      commits.forEach(c => {
+        const li = document.createElement('li');
+        const sha = el(c.Url ? 'a' : 'span', 'tv-sc-sha', String(c.Id || '').slice(0, 8) || '—');
+        if (c.Url) { sha.href = c.Url; sha.target = '_blank'; sha.rel = 'noopener'; }
+        li.appendChild(sha);
+        const msg = el('span', 'tv-sc-msg', c.Message || '(no message)'); msg.dir = 'auto';
+        li.appendChild(msg);
+        const who = c.Author && (c.Author.DisplayName || c.Author.Name);
+        const meta = [who, c.CommittedOn ? scFmtDate(c.CommittedOn) : ''].filter(Boolean).join(' · ');
+        if (meta) li.appendChild(el('span', 'tv-sc-meta', meta));
+        ul.appendChild(li);
+      });
+      rb.appendChild(ul);
+      sec.appendChild(rb);
+    });
+    wrap.appendChild(sec);
+  }
+
+  const inCommits = new Set(d.commits.map(c => c.Author && (c.Author.DisplayName || c.Author.Name)).filter(Boolean));
+  const others = (d.sc.Contributors || []).map(x => x.DisplayName || x.Name).filter(x => x && !inCommits.has(x));
+  if (others.length) {
+    const sec = el('div', 'tv-sc-section');
+    sec.appendChild(el('div', 'tv-sc-h', 'Other contributors'));
+    sec.appendChild(el('div', 'tv-sc-devs', others.join(', ')));
+    wrap.appendChild(sec);
+  }
+
+  if (!wrap.childNodes.length) {
+    wrap.appendChild(el('div', 'tv-sc-devs', 'No commit details available.'));
+  }
+  return wrap;
 }
 
 /* filter: "with system info" */
@@ -624,6 +800,19 @@ function updateFilterUi() {
   btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   $('#filterBanner').hidden = !on;
   if (on) $('#filterBannerText').textContent = 'Filtered to Work Items that have System Info. Other items are hidden.';
+}
+
+/* Source Control toggle - independent of the extra-field selection */
+$('#scBtn').addEventListener('click', () => {
+  scOn = !scOn;
+  saveSc();
+  updateScUi();
+  render();
+});
+function updateScUi() {
+  const btn = $('#scBtn');
+  btn.classList.toggle('on', scOn);
+  btn.setAttribute('aria-pressed', scOn ? 'true' : 'false');
 }
 
 /* additional TFS field columns */
@@ -699,6 +888,7 @@ function currentColumns() {
     { key: 'state', label: 'State', kind: 'Text' },
     { key: 'systemInfo', label: 'System Info', kind: 'Multiline' }
   ];
+  if (scOn) cols.push({ key: 'sourceControl', label: 'Source Control', kind: 'Text' });
   extraFields.forEach(ref => cols.push({ key: 'x:' + ref, label: fieldLabel(ref), kind: 'Text' }));
   return cols;
 }
@@ -708,6 +898,7 @@ function cellText(n, key) {
   if (key === 'title') return n.Title || '(untitled)';
   if (key === 'state') return n.State || '';
   if (key === 'systemInfo') return n.Error ? n.Error : (hasInfo(n) ? n.SystemInfo : '');
+  if (key === 'sourceControl') { const d = scData(n); return d ? scSummaryText(d) : ''; }
   if (key.indexOf('x:') === 0) return (n.Fields && n.Fields[key.slice(2)]) || '';
   return '';
 }

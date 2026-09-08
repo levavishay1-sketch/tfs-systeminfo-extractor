@@ -119,6 +119,15 @@ any additional TFS field found on the extracted items (the list comes from
 the TFS field catalogue, `_apis/wit/fields`; selections persist per browser).
 The default columns are unchanged; the hierarchy is shown in the Type column.
 
+**Source Control** is an optional toolbar toggle (off by default, independent
+of the Fields selection). When on, a single **Source Control** column appears
+next to System Info with a compact per-item summary (commits / repositories /
+developers); each Work Item with source-control activity expands in place to a
+detail section - commit SHA, message, author, date and repository, grouped by
+repository. The data comes from `WorkItemNode.SourceControl`
+(`Core/Model/SourceControl/`), the single extension point for adding pull
+requests, branches or builds later.
+
 ## Export
 
 **Download / Export** offers **Excel** (the default), **PDF**, **JSON** and
